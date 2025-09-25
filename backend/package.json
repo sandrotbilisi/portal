@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon main.js",
     "setup-ssl": "node setup-ssl.js",
+    "setup-public": "./setup-public-access.sh",
     "dev": "npm run setup-ssl && npm start"
   },
   "keywords": [],

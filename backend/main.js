@@ -521,10 +521,14 @@ function startServer() {
         const httpsServer = https.createServer(SSL_OPTIONS, app);
         
         // Start HTTPS server
-        httpsServer.listen(PORT, () => {
+        // all interfaces
+        httpsServer.listen(PORT, '0.0.0.0', () => {
             logger.info(`🚀 HTTPS Server is running on https://localhost:${PORT}`);
             logger.info(`📁 File manager available at: https://localhost:${PORT}`);
             logger.info(`🔒 SSL Certificate: Self-signed (browser will show security warning)`);
+
+            
+
             ensureDirectoryExists(UPLOADS_DIR);
         });
         
@@ -537,7 +541,7 @@ function startServer() {
                 logger.error('HTTP fallback server error:', error.message);
             }
         });
-        httpServer.listen(3001, () => {
+        httpServer.listen(3001, '0.0.0.0', () => {
             logger.info(`🌐 HTTP Server is running on http://localhost:3001 (fallback)`);
         });
         
@@ -546,7 +550,7 @@ function startServer() {
         logger.info('Falling back to HTTP server...');
         
         // Fallback to HTTP if HTTPS fails
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             logger.info(`🌐 HTTP Server is running on http://localhost:${PORT}`);
             logger.info(`⚠️  Note: Some features may not work without HTTPS`);
             ensureDirectoryExists(UPLOADS_DIR);
