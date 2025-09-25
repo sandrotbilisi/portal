@@ -4,8 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const mime = require('mime-types');
 const logger = require('pino')();
-const https = require('https');
-const http = require('http');
 
 const app = express();
 const PORT = 3000;
@@ -475,88 +473,8 @@ app.use((req, res) => {
     });
 });
 
-// SSL Certificate configuration
-const SSL_OPTIONS = {
-    key: fs.readFileSync(path.join(__dirname, 'ssl', 'private-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'ssl', 'certificate.pem'))
-};
-
-// Function to create self-signed certificate if it doesn't exist
-function createSelfSignedCert() {
-    const sslDir = path.join(__dirname, 'ssl');
-    const keyPath = path.join(sslDir, 'private-key.pem');
-    const certPath = path.join(sslDir, 'certificate.pem');
-    
-    if (!fs.existsSync(sslDir)) {
-        fs.mkdirSync(sslDir);
-    }
-    
-    if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
-        logger.info('Creating self-signed SSL certificate...');
-        
-        const { execSync } = require('child_process');
-        try {
-            // Generate private key
-            execSync(`openssl genrsa -out "${keyPath}" 2048`, { stdio: 'inherit' });
-            
-            // Generate certificate
-            execSync(`openssl req -new -x509 -key "${keyPath}" -out "${certPath}" -days 365 -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"`, { stdio: 'inherit' });
-            
-            logger.info('Self-signed SSL certificate created successfully!');
-        } catch (error) {
-            logger.error('Failed to create SSL certificate:', error.message);
-            logger.info('Please install OpenSSL or create certificates manually');
-            process.exit(1);
-        }
-    }
-}
-
-// Start server with HTTPS support
-function startServer() {
-    try {
-        // Create SSL certificates if they don't exist
-        createSelfSignedCert();
-        
-        // Create HTTPS server
-        const httpsServer = https.createServer(SSL_OPTIONS, app);
-        
-        // Start HTTPS server
-        // all interfaces
-        httpsServer.listen(PORT, '0.0.0.0', () => {
-            logger.info(`🚀 HTTPS Server is running on https://localhost:${PORT}`);
-            logger.info(`📁 File manager available at: https://localhost:${PORT}`);
-            logger.info(`🔒 SSL Certificate: Self-signed (browser will show security warning)`);
-
-            
-
-            ensureDirectoryExists(UPLOADS_DIR);
-        });
-        
-        // Also start HTTP server on port 3001 for fallback (optional)
-        const httpServer = http.createServer(app);
-        httpServer.on('error', (error) => {
-            if (error.code === 'EADDRINUSE') {
-                logger.info(`⚠️  HTTP fallback server not started (port 3001 is already in use)`);
-            } else {
-                logger.error('HTTP fallback server error:', error.message);
-            }
-        });
-        httpServer.listen(3001, '0.0.0.0', () => {
-            logger.info(`🌐 HTTP Server is running on http://localhost:3001 (fallback)`);
-        });
-        
-    } catch (error) {
-        logger.error('Failed to start HTTPS server:', error.message);
-        logger.info('Falling back to HTTP server...');
-        
-        // Fallback to HTTP if HTTPS fails
-        app.listen(PORT, '0.0.0.0', () => {
-            logger.info(`🌐 HTTP Server is running on http://localhost:${PORT}`);
-            logger.info(`⚠️  Note: Some features may not work without HTTPS`);
-            ensureDirectoryExists(UPLOADS_DIR);
-        });
-    }
-}
-
-// Start the server
-startServer();
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server is running on port ${PORT}`);
+    ensureDirectoryExists(UPLOADS_DIR);
+});
