@@ -47,13 +47,12 @@ export default function Home() {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [documentType, setDocumentType] = useState<string>('');
-  const [showEmbeddedViewer, setShowEmbeddedViewer] = useState(false);
 
   useEffect(() => {
     const fetchFolders = async () => {
       try {
         setLoading(true);
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `https://localhost:3000/folders/${currentPath}` : "https://localhost:3000/folders";
         const response = await axios.get(url);
         console.log(response.data);
         
@@ -171,7 +170,7 @@ export default function Home() {
       handleFolderClick(folder.name);
     } else if (isImageFile(folder.name)) {
       const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedImage(`http://localhost:3000/uploads/${imagePath}`);
+      setSelectedImage(`https://localhost:3000/uploads/${imagePath}`);
       setIsImageModalOpen(true);
     } else if (folder.name.endsWith('.json') && folder.type === 'youtube') {
       // Handle YouTube video files
@@ -206,7 +205,7 @@ export default function Home() {
         formData.append('file', file);
         formData.append('folderPath', currentPath);
 
-        const response = await axios.post('http://localhost:3000/files', formData, {
+        const response = await axios.post('https://localhost:3000/files', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -222,7 +221,7 @@ export default function Home() {
       }
 
       // Refresh the folder contents after successful upload
-      const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+      const url = currentPath ? `https://localhost:3000/folders/${currentPath}` : "https://localhost:3000/folders";
       const response = await axios.get(url);
       if (response.data.success) {
         setFolders(response.data.data);
@@ -281,14 +280,14 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/folders', {
+      const response = await axios.post('https://localhost:3000/folders', {
         folderName: newFolderName.trim(),
         folderPath: currentPath
       });
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `https://localhost:3000/folders/${currentPath}` : "https://localhost:3000/folders";
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -337,13 +336,13 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${renameItem.name}` : renameItem.name;
-      const response = await axios.put(`http://localhost:3000/files/${filePath}`, {
+      const response = await axios.put(`https://localhost:3000/files/${filePath}`, {
         newName: newItemName.trim()
       });
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `https://localhost:3000/folders/${currentPath}` : "https://localhost:3000/folders";
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -371,11 +370,11 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${deleteItem.name}` : deleteItem.name;
-      const response = await axios.delete(`http://localhost:3000/files/${filePath}`);
+      const response = await axios.delete(`https://localhost:3000/files/${filePath}`);
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `https://localhost:3000/folders/${currentPath}` : "https://localhost:3000/folders";
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -444,7 +443,7 @@ export default function Home() {
       setIsAddingYouTube(true);
       setError(null);
 
-      const response = await fetch('http://localhost:3000/youtube', {
+      const response = await fetch('https://localhost:3000/youtube', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -463,12 +462,7 @@ export default function Home() {
       }
 
       closeYouTubeModal();
-      // fetchFolders is not defined; likely should be setFolders to update the folder list.
-      // If you want to refresh the folder list after adding a YouTube video, you should call the function that fetches folders.
-      // Assuming you have a function like "loadFolders" or similar, call it here.
-      // For now, we'll just leave a comment to indicate this.
-      // TODO: Refresh the folder list here if needed.
-
+      fetchFolders(); // Refresh the folder list
     } catch (error) {
       console.error('Error adding YouTube video:', error);
       setError(error instanceof Error ? error.message : 'Failed to add YouTube video');
@@ -489,7 +483,7 @@ export default function Home() {
 
   const openPdfModal = (fileName: string) => {
     const pdfPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedPdf(`http://localhost:3000/uploads/${pdfPath}`);
+    setSelectedPdf(`https://localhost:3000/uploads/${pdfPath}`);
     setIsPdfModalOpen(true);
   };
 
@@ -500,7 +494,7 @@ export default function Home() {
 
   const openVideoFileModal = (fileName: string) => {
     const videoPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedVideoFile(`http://localhost:3000/uploads/${videoPath}`);
+    setSelectedVideoFile(`https://localhost:3000/uploads/${videoPath}`);
     setIsVideoFileModalOpen(true);
   };
 
@@ -540,17 +534,15 @@ export default function Home() {
 
   const openDocumentModal = (fileName: string) => {
     const docPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const fullUrl = `http://localhost:3000/uploads/${docPath}`;
+    const fullUrl = `https://localhost:3000/uploads/${docPath}`;
     setSelectedDocument(fullUrl);
     setDocumentType(getDocumentType(fileName));
-    setShowEmbeddedViewer(false);
     setIsDocumentModalOpen(true);
   };
 
   const closeDocumentModal = () => {
     setSelectedDocument(null);
     setDocumentType('');
-    setShowEmbeddedViewer(false);
     setIsDocumentModalOpen(false);
   };
 
@@ -1656,61 +1648,12 @@ export default function Home() {
             </div>
 
             <div className="flex-1 bg-white rounded-lg overflow-hidden">
-              <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                <div className="text-center p-8 max-w-md">
-                  <div className="w-20 h-20 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-6">
-                    <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{documentType}</h3>
-                  <p className="text-gray-600 mb-6">
-                    This document can be opened in your default application or downloaded. 
-                    Online preview requires HTTPS and public access.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                    <a
-                      href={selectedDocument}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                      </svg>
-                      <span>Open in New Tab</span>
-                    </a>
-                    <button
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = selectedDocument;
-                        link.download = selectedDocument.split('/').pop() || 'document';
-                        link.click();
-                      }}
-                      className="w-full sm:w-auto px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>Download</span>
-                    </button>
-                  </div>
-                  
-                  {/* Try alternative viewer */}
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <p className="text-sm text-gray-500 mb-3">Try alternative viewer:</p>
-                    <button
-                      onClick={() => {
-                        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(selectedDocument)}`;
-                        window.open(viewerUrl, '_blank');
-                      }}
-                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200 text-sm"
-                    >
-                      Microsoft Office Online
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument)}&embedded=true`}
+                className="w-full h-full"
+                title="Document Viewer"
+                style={{ border: 'none' }}
+              />
             </div>
 
             <div className="mt-4 flex items-center justify-between">
