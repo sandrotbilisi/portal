@@ -4,27 +4,147 @@ const fs = require('fs');
 const path = require('path');
 const mime = require('mime-types');
 const logger = require('pino')();
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = 3000;
 const UPLOADS_DIR = 'uploads';
+const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
+const JWT_EXPIRES_IN = '7d';
 
-// CORS middleware - allow all origins
+// Simple in-memory user store (replace with DB later)
+// Default admin created on server start if none exists
+const users = [
+    {
+        id: '1',
+        username: 'admin',
+        passwordHash: bcrypt.hashSync('admin', 10),
+        role: 'admin'
+    }
+];
+
+function findUserByUsername(username) {
+    return users.find(u => u.username.toLowerCase() === String(username || '').toLowerCase());
+}
+
+function generateToken(user) {
+    return jwt.sign({ sub: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+function setAuthCookie(res, token) {
+    res.cookie('auth', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+}
+
+function clearAuthCookie(res) {
+    res.clearCookie('auth');
+}
+
+// CORS for credentials (adjust origin as needed)
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin || '*';
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
-    // Handle preflight requests
     if (req.method === 'OPTIONS') {
-        res.sendStatus(200);
-    } else {
-        next();
+        return res.sendStatus(200);
     }
+    next();
 });
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
+
+// Auth middlewares
+function requireAuth(req, res, next) {
+    try {
+        const token = req.cookies?.auth || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : null);
+        if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const payload = jwt.verify(token, JWT_SECRET);
+        req.user = payload;
+        next();
+    } catch (err) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+}
+
+function requireRole(role) {
+    return (req, res, next) => {
+        if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+        if (req.user.role !== role) return res.status(403).json({ success: false, message: 'Forbidden' });
+        next();
+    };
+}
+
+// Auth routes
+app.post('/auth/login', (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'Username and password required' });
+        }
+        const user = findUserByUsername(username);
+        if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        const ok = bcrypt.compareSync(password, user.passwordHash);
+        if (!ok) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        const token = generateToken(user);
+        setAuthCookie(res, token);
+        return res.json({ success: true, data: { username: user.username, role: user.role } });
+    } catch (error) {
+        logger.error('Login error:', error);
+        return res.status(500).json({ success: false, message: 'Login failed' });
+    }
+});
+
+app.post('/auth/logout', (req, res) => {
+    clearAuthCookie(res);
+    return res.json({ success: true });
+});
+
+app.get('/auth/me', (req, res) => {
+    try {
+        const token = req.cookies?.auth || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : null);
+        if (!token) return res.status(200).json({ success: true, data: null });
+        const payload = jwt.verify(token, JWT_SECRET);
+        return res.json({ success: true, data: { username: payload.username, role: payload.role } });
+    } catch {
+        return res.json({ success: true, data: null });
+    }
+});
+
+// Admin create lower-role users
+app.post('/users', requireAuth, requireRole('admin'), (req, res) => {
+    try {
+        const { username, password, role } = req.body || {};
+        if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required' });
+        if (findUserByUsername(username)) return res.status(400).json({ success: false, message: 'User exists' });
+        const newUser = {
+            id: String(users.length + 1),
+            username: String(username),
+            passwordHash: bcrypt.hashSync(String(password), 10),
+            role: role === 'admin' ? 'admin' : 'user'
+        };
+        users.push(newUser);
+        return res.json({ success: true, data: { id: newUser.id, username: newUser.username, role: newUser.role } });
+    } catch (error) {
+        logger.error('Create user error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to create user' });
+    }
+});
+
+app.get('/users', requireAuth, requireRole('admin'), (req, res) => {
+    const list = users.map(u => ({ id: u.id, username: u.username, role: u.role }));
+    res.json({ success: true, data: list });
+});
 
 // Utility functions
 function getFolderSize(folderPath) {
@@ -114,10 +234,10 @@ function generateUniqueFilename(originalName) {
     return `${name}-${timestamp}${ext}`;
 }
 
-// Routes
+// Routes (protected)
 
 // List all items in the uploads folder
-app.get('/folders', (req, res) => {
+app.get('/folders', requireAuth, requireRole('admin'), (req, res) => {
     try {
         ensureDirectoryExists(UPLOADS_DIR);
         const files = fs.readdirSync(UPLOADS_DIR);
@@ -141,7 +261,7 @@ app.get('/folders', (req, res) => {
 });
 
 // List items in a specific folder (handles nested paths)
-app.get(/^\/folders\/(.+)$/, (req, res) => {
+app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
     try {
         // Get the full path from the URL
         const fullUrlPath = req.params[0];
@@ -182,7 +302,7 @@ app.get(/^\/folders\/(.+)$/, (req, res) => {
 });
 
 // Create a new folder
-app.post('/folders', (req, res) => {
+app.post('/folders', requireAuth, requireRole('admin'), (req, res) => {
     try {
         const { folderName, folderPath: folderPathParam } = req.body;
         
@@ -220,7 +340,7 @@ app.post('/folders', (req, res) => {
 });
 
 // Upload a file
-app.post('/files', (req, res) => {
+app.post('/files', requireAuth, requireRole('admin'), (req, res) => {
     const upload = multer();
     
     upload.fields([
@@ -293,7 +413,7 @@ app.use((error, req, res, next) => {
 });
 
 // Delete a file or folder
-app.delete(/^\/files\/(.+)$/, (req, res) => {
+app.delete(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
     try {
         const filePath = req.params[0];
         const fullPath = path.join(UPLOADS_DIR, filePath);
@@ -332,7 +452,7 @@ app.delete(/^\/files\/(.+)$/, (req, res) => {
 });
 
 // Rename a file or folder
-app.put(/^\/files\/(.+)$/, (req, res) => {
+app.put(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
     try {
         const filePath = req.params[0];
         const { newName } = req.body;
@@ -394,7 +514,7 @@ app.put(/^\/files\/(.+)$/, (req, res) => {
 });
 
 // Add YouTube video
-app.post('/youtube', (req, res) => {
+app.post('/youtube', requireAuth, requireRole('admin'), (req, res) => {
     try {
         const { url, title, folderPath = '' } = req.body;
         

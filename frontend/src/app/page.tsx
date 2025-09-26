@@ -1,6 +1,7 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // API Configuration - Change this to easily switch between environments
 // Examples:
@@ -9,15 +10,26 @@ import { useEffect, useState } from "react";
 // Staging: "https://staging-api.your-domain.com"
 const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
 
+interface MeResponse {
+  username: string;
+  role: "admin" | "user";
+}
+
 interface Folder {
   name: string;
   type: string;
   size: number;
   created: string;
   modified: string;
+  // Optional fields for YouTube JSON files
+  title?: string;
+  thumbnail?: string;
+  id?: string;
+  url?: string;
 }
 
 export default function Home() {
+  const router = useRouter();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,30 +66,59 @@ export default function Home() {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [documentType, setDocumentType] = useState<string>('');
+  const [me, setMe] = useState<MeResponse | null>(null);
 
+  // Configure axios to send cookies
+  axios.defaults.withCredentials = true;
+
+  // On mount: check session and role
   useEffect(() => {
-    const fetchFolders = async () => {
+    const checkAuth = async () => {
       try {
-        setLoading(true);
-        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-        const response = await axios.get(url);
-        console.log(response.data);
-        
-        if (response.data.success) {
-          setFolders(response.data.data);
+        const res = await axios.get(`${API_BASE_URL}/auth/me`);
+        if (res.data?.data) {
+          const info: MeResponse = res.data.data;
+          setMe(info);
+          if (info.role !== 'admin') {
+            router.replace('/unauthorized');
+            return;
+          }
         } else {
-          setError(response.data.message || 'Failed to fetch folders');
+          router.replace('/login');
+          return;
         }
-      } catch (err) {
-        console.error('Error fetching folders:', err);
-        setError('Failed to connect to server');
-      } finally {
-        setLoading(false);
+      } catch {
+        router.replace('/login');
+        return;
       }
     };
+    checkAuth();
+  }, [router]);
 
-    fetchFolders();
-  }, [currentPath]);
+  const fetchFolders = async () => {
+    try {
+      setLoading(true);
+      const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
+      const response = await axios.get(url);
+      if (response.data.success) {
+        setFolders(response.data.data);
+      } else {
+        setError(response.data.message || 'Failed to fetch folders');
+      }
+    } catch (err) {
+      console.error('Error fetching folders:', err);
+      setError('Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Only fetch after auth check confirms admin
+    if (me?.role === 'admin') {
+      fetchFolders();
+    }
+  }, [currentPath, me]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -228,11 +269,7 @@ export default function Home() {
       }
 
       // Refresh the folder contents after successful upload
-      const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-      const response = await axios.get(url);
-      if (response.data.success) {
-        setFolders(response.data.data);
-      }
+      await fetchFolders();
 
       setIsUploadModalOpen(false);
       setUploadProgress(0);
@@ -294,11 +331,7 @@ export default function Home() {
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-        const refreshResponse = await axios.get(url);
-        if (refreshResponse.data.success) {
-          setFolders(refreshResponse.data.data);
-        }
+        await fetchFolders();
         
         setIsCreateFolderModalOpen(false);
         setNewFolderName("");
@@ -349,11 +382,7 @@ export default function Home() {
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-        const refreshResponse = await axios.get(url);
-        if (refreshResponse.data.success) {
-          setFolders(refreshResponse.data.data);
-        }
+        await fetchFolders();
         
         setIsRenameModalOpen(false);
         setRenameItem(null);
@@ -381,11 +410,7 @@ export default function Home() {
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-        const refreshResponse = await axios.get(url);
-        if (refreshResponse.data.success) {
-          setFolders(refreshResponse.data.data);
-        }
+        await fetchFolders();
         
         setIsDeleteModalOpen(false);
         setDeleteItem(null);
@@ -460,6 +485,7 @@ export default function Home() {
           title: youtubeTitle.trim(),
           folderPath: currentPath
         }),
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -575,6 +601,13 @@ export default function Home() {
     };
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/auth/logout`);
+      router.replace('/login');
+    } catch {}
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       {/* Subtle animated background */}
@@ -598,6 +631,18 @@ export default function Home() {
                 </h1>
                 <p className="text-gray-500 text-sm font-medium">File Manager</p>
               </div>
+            </div>
+            <div className="flex-1"></div>
+            {/* Auth actions */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/users')}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl"
+              >Users</button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl"
+              >Logout</button>
             </div>
           </div>
           <p className="text-gray-400 text-lg">Professional file organization and management</p>
@@ -777,12 +822,12 @@ export default function Home() {
                             {folder.type === 'youtube' ? (
                               <div className="relative w-16 h-16 rounded-xl overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow duration-300">
                                 <img
-                                  src={folder.thumbnail}
-                                  alt={folder.title}
+                                  src={folder.thumbnail as string}
+                                  alt={folder.title as string}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   onError={(e) => {
                                     // Fallback to YouTube icon if thumbnail fails to load
-                                    e.currentTarget.style.display = 'none';
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
                                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                   }}
                                 />
@@ -864,7 +909,7 @@ export default function Home() {
                                   e.stopPropagation();
                                   openRenameModal(folder);
                                   // Hide menu
-                                  const menu = e.currentTarget.closest('.absolute');
+                                  const menu = (e.currentTarget as HTMLElement).closest('.absolute');
                                   if (menu) menu.classList.add('hidden');
                                 }}
                                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center space-x-2"
@@ -880,7 +925,7 @@ export default function Home() {
                                   e.stopPropagation();
                                   openDeleteModal(folder);
                                   // Hide menu
-                                  const menu = e.currentTarget.closest('.absolute');
+                                  const menu = (e.currentTarget as HTMLElement).closest('.absolute');
                                   if (menu) menu.classList.add('hidden');
                                 }}
                                 className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center space-x-2"
@@ -981,7 +1026,7 @@ export default function Home() {
                   placeholder="Enter folder name..."
                   className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-300"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if ((e as React.KeyboardEvent<HTMLInputElement>).key === 'Enter') {
                       handleCreateFolder();
                     }
                   }}
@@ -1086,7 +1131,7 @@ export default function Home() {
                   placeholder="Enter new name..."
                   className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-300"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if ((e as React.KeyboardEvent<HTMLInputElement>).key === 'Enter') {
                       handleRename();
                     }
                   }}
@@ -1368,7 +1413,7 @@ export default function Home() {
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 onError={(e) => {
                   console.error('Failed to load image:', selectedImage);
-                  e.currentTarget.style.display = 'none';
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
               />
             </div>
