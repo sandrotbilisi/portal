@@ -2,6 +2,13 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 
+// API Configuration - Change this to easily switch between environments
+// Examples:
+// Development: "http://localhost:3000"
+// Production: "https://your-api-domain.com"
+// Staging: "https://staging-api.your-domain.com"
+const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+
 interface Folder {
   name: string;
   type: string;
@@ -52,7 +59,7 @@ export default function Home() {
     const fetchFolders = async () => {
       try {
         setLoading(true);
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
         const response = await axios.get(url);
         console.log(response.data);
         
@@ -170,7 +177,7 @@ export default function Home() {
       handleFolderClick(folder.name);
     } else if (isImageFile(folder.name)) {
       const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedImage(`http://localhost:3000/uploads/${imagePath}`);
+      setSelectedImage(`${API_BASE_URL}/uploads/${imagePath}`);
       setIsImageModalOpen(true);
     } else if (folder.name.endsWith('.json') && folder.type === 'youtube') {
       // Handle YouTube video files
@@ -205,7 +212,7 @@ export default function Home() {
         formData.append('file', file);
         formData.append('folderPath', currentPath);
 
-        const response = await axios.post('http://localhost:3000/files', formData, {
+        const response = await axios.post(`${API_BASE_URL}/files`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -221,7 +228,7 @@ export default function Home() {
       }
 
       // Refresh the folder contents after successful upload
-      const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+      const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
       const response = await axios.get(url);
       if (response.data.success) {
         setFolders(response.data.data);
@@ -280,14 +287,14 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/folders', {
+      const response = await axios.post(`${API_BASE_URL}/folders`, {
         folderName: newFolderName.trim(),
         folderPath: currentPath
       });
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -336,13 +343,13 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${renameItem.name}` : renameItem.name;
-      const response = await axios.put(`http://localhost:3000/files/${filePath}`, {
+      const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
         newName: newItemName.trim()
       });
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -370,11 +377,11 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${deleteItem.name}` : deleteItem.name;
-      const response = await axios.delete(`http://localhost:3000/files/${filePath}`);
+      const response = await axios.delete(`${API_BASE_URL}/files/${filePath}`);
 
       if (response.data.success) {
         // Refresh the folder contents
-        const url = currentPath ? `http://localhost:3000/folders/${currentPath}` : "http://localhost:3000/folders";
+        const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
         const refreshResponse = await axios.get(url);
         if (refreshResponse.data.success) {
           setFolders(refreshResponse.data.data);
@@ -443,7 +450,7 @@ export default function Home() {
       setIsAddingYouTube(true);
       setError(null);
 
-      const response = await fetch('http://localhost:3000/youtube', {
+      const response = await fetch(`${API_BASE_URL}/youtube`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -483,7 +490,7 @@ export default function Home() {
 
   const openPdfModal = (fileName: string) => {
     const pdfPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedPdf(`http://localhost:3000/uploads/${pdfPath}`);
+    setSelectedPdf(`${API_BASE_URL}/uploads/${pdfPath}`);
     setIsPdfModalOpen(true);
   };
 
@@ -494,7 +501,7 @@ export default function Home() {
 
   const openVideoFileModal = (fileName: string) => {
     const videoPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedVideoFile(`http://localhost:3000/uploads/${videoPath}`);
+    setSelectedVideoFile(`${API_BASE_URL}/uploads/${videoPath}`);
     setIsVideoFileModalOpen(true);
   };
 
@@ -534,7 +541,7 @@ export default function Home() {
 
   const openDocumentModal = (fileName: string) => {
     const docPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const fullUrl = `http://localhost:3000/uploads/${docPath}`;
+    const fullUrl = `${API_BASE_URL}/uploads/${docPath}`;
     setSelectedDocument(fullUrl);
     setDocumentType(getDocumentType(fileName));
     setIsDocumentModalOpen(true);
