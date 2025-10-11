@@ -527,18 +527,9 @@ app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) =>
 app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const filePath = req.params[0];
-        const { newName } = req.body;
-        
-        if (!newName || !newName.trim()) {
-            return res.status(400).json({
-                success: false,
-                message: 'New name is required'
-            });
-        }
+        const { newName, updateYouTubeTitle, newTitle } = req.body;
         
         const fullPath = path.join(UPLOADS_DIR, filePath);
-        const dirPath = path.dirname(fullPath);
-        const newFullPath = path.join(dirPath, newName.trim());
         
         if (!fs.existsSync(fullPath)) {
             return res.status(404).json({
@@ -546,6 +537,56 @@ app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
                 message: 'File or folder not found'
             });
         }
+        
+        // Handle YouTube video title update
+        if (updateYouTubeTitle) {
+            if (!newTitle || !newTitle.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'New title is required'
+                });
+            }
+            
+            // Read the JSON file
+            try {
+                const jsonContent = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                
+                // Update the title
+                jsonContent.title = newTitle.trim();
+                
+                // Write back to the file
+                fs.writeFileSync(fullPath, JSON.stringify(jsonContent, null, 2));
+                
+                logger.info(`Updated YouTube video title: ${fullPath}`);
+                
+                return res.json({
+                    success: true,
+                    message: 'YouTube video title updated successfully',
+                    data: {
+                        path: filePath,
+                        newTitle: newTitle.trim()
+                    }
+                });
+            } catch (error) {
+                logger.error('Error updating YouTube video title:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to update video title',
+                    error: error.message
+                });
+            }
+        }
+        
+        // Handle regular file/folder rename
+        if (!newName || !newName.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'New name is required'
+            });
+        }
+        
+        const dirPath = path.dirname(fullPath);
+        const newFullPath = path.join(dirPath, newName.trim());
         
         if (fs.existsSync(newFullPath)) {
             return res.status(400).json({
