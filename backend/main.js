@@ -12,23 +12,58 @@ const app = express();
 const PORT = 3000;
 const UPLOADS_DIR = 'uploads';
 const ORDER_FILE_NAME = '.file-order.json';
+const USERS_DB_FILE = 'users.json';
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = '7d';
 
-// Simple in-memory user store (replace with DB later)
-// Default admin created on server start if none exists
-const users = [
-    {
-        id: '1',
-        username: 'admin',
-        passwordHash: bcrypt.hashSync('admin', 10),
-        role: 'admin'
+// File-based user database
+let users = [];
+
+// Load users from file
+function loadUsers() {
+    try {
+        if (fs.existsSync(USERS_DB_FILE)) {
+            const data = fs.readFileSync(USERS_DB_FILE, 'utf8');
+            users = JSON.parse(data);
+            logger.info(`Loaded ${users.length} users from database`);
+        } else {
+            // Create default admin if no users file exists
+            users = [
+                {
+                    id: '1',
+                    username: 'admin',
+                    passwordHash: bcrypt.hashSync('admin', 10),
+                    role: 'admin',
+                    name: 'System',
+                    lastname: 'Administrator',
+                    personalNumber: '000000-0000'
+                }
+            ];
+            saveUsers();
+            logger.info('Created default admin user');
+        }
+    } catch (error) {
+        logger.error('Error loading users:', error);
+        users = [];
     }
-];
+}
+
+// Save users to file
+function saveUsers() {
+    try {
+        fs.writeFileSync(USERS_DB_FILE, JSON.stringify(users, null, 2));
+        logger.info('Users saved to database');
+    } catch (error) {
+        logger.error('Error saving users:', error);
+    }
+}
 
 function findUserByUsername(username) {
     return users.find(u => u.username.toLowerCase() === String(username || '').toLowerCase());
 }
+
+// Load users on startup
+loadUsers();
 
 function generateToken(user) {
     return jwt.sign({ sub: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -136,7 +171,21 @@ app.get('/auth/me', (req, res) => {
         const token = req.cookies?.auth || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : null);
         if (!token) return res.status(200).json({ success: true, data: null });
         const payload = jwt.verify(token, JWT_SECRET);
-        return res.json({ success: true, data: { username: payload.username, role: payload.role } });
+        
+        // Fetch full user data from database
+        const user = users.find(u => u.id === payload.sub);
+        if (!user) return res.json({ success: true, data: null });
+        
+        return res.json({ 
+            success: true, 
+            data: { 
+                username: user.username, 
+                role: user.role,
+                name: user.name || '',
+                lastname: user.lastname || '',
+                personalNumber: user.personalNumber || ''
+            } 
+        });
     } catch {
         return res.json({ success: true, data: null });
     }
@@ -145,17 +194,50 @@ app.get('/auth/me', (req, res) => {
 // Admin create lower-role users
 app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const { username, password, role } = req.body || {};
-        if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required' });
-        if (findUserByUsername(username)) return res.status(400).json({ success: false, message: 'User exists' });
+        const { username, password, role, name, lastname, personalNumber } = req.body || {};
+        
+        // Validate required fields
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'Username and password required' });
+        }
+        if (!name || !lastname || !personalNumber) {
+            return res.status(400).json({ success: false, message: 'Name, lastname, and personal number required' });
+        }
+        
+        // Check if user exists
+        if (findUserByUsername(username)) {
+            return res.status(400).json({ success: false, message: 'User exists' });
+        }
+        
+        // Generate new ID
+        const maxId = users.length > 0 ? Math.max(...users.map(u => parseInt(u.id) || 0)) : 0;
+        
         const newUser = {
-            id: String(users.length + 1),
-            username: String(username),
+            id: String(maxId + 1),
+            username: String(username).trim(),
             passwordHash: bcrypt.hashSync(String(password), 10),
-            role: role === 'admin' ? 'admin' : 'user'
+            role: role === 'admin' ? 'admin' : 'user',
+            name: String(name).trim(),
+            lastname: String(lastname).trim(),
+            personalNumber: String(personalNumber).trim()
         };
+        
         users.push(newUser);
-        return res.json({ success: true, data: { id: newUser.id, username: newUser.username, role: newUser.role } });
+        saveUsers();
+        
+        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname})`);
+        
+        return res.json({ 
+            success: true, 
+            data: { 
+                id: newUser.id, 
+                username: newUser.username, 
+                role: newUser.role,
+                name: newUser.name,
+                lastname: newUser.lastname,
+                personalNumber: newUser.personalNumber
+            } 
+        });
     } catch (error) {
         logger.error('Create user error:', error);
         return res.status(500).json({ success: false, message: 'Failed to create user' });
@@ -163,7 +245,14 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
-    const list = users.map(u => ({ id: u.id, username: u.username, role: u.role }));
+    const list = users.map(u => ({ 
+        id: u.id, 
+        username: u.username, 
+        role: u.role,
+        name: u.name || '',
+        lastname: u.lastname || '',
+        personalNumber: u.personalNumber || ''
+    }));
     res.json({ success: true, data: list });
 });
 
