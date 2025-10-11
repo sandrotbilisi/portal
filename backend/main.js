@@ -389,6 +389,70 @@ app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
     }
 });
 
+// Update user
+app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username, role, name, lastname, personalNumber, branchId } = req.body || {};
+        
+        const userIndex = users.findIndex(u => u.id === id);
+        if (userIndex === -1) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        
+        const user = users[userIndex];
+        
+        // Validate required fields
+        if (!username || !name || !lastname || !personalNumber || !branchId) {
+            return res.status(400).json({ success: false, message: 'All fields are required' });
+        }
+        
+        // Check if username is taken by another user
+        const existingUser = findUserByUsername(username);
+        if (existingUser && existingUser.id !== id) {
+            return res.status(400).json({ success: false, message: 'Username already taken' });
+        }
+        
+        // Validate branch exists
+        const branch = branches.find(b => b.id === branchId);
+        if (!branch) {
+            return res.status(400).json({ success: false, message: 'Invalid branch' });
+        }
+        
+        // Update user data
+        users[userIndex] = {
+            ...user,
+            username: String(username).trim(),
+            role: role === 'admin' ? 'admin' : 'user',
+            name: String(name).trim(),
+            lastname: String(lastname).trim(),
+            personalNumber: String(personalNumber).trim(),
+            branchId: String(branchId)
+        };
+        
+        saveUsers();
+        
+        logger.info(`User updated: ${users[userIndex].username} (${users[userIndex].name} ${users[userIndex].lastname})`);
+        
+        return res.json({ 
+            success: true, 
+            data: {
+                id: users[userIndex].id,
+                username: users[userIndex].username,
+                role: users[userIndex].role,
+                name: users[userIndex].name,
+                lastname: users[userIndex].lastname,
+                personalNumber: users[userIndex].personalNumber,
+                branchId: users[userIndex].branchId,
+                branchName: branch.name
+            }
+        });
+    } catch (error) {
+        logger.error('Update user error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to update user' });
+    }
+});
+
 // Utility functions
 function getFolderSize(folderPath) {
     let total = 0;
