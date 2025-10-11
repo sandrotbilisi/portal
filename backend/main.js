@@ -37,7 +37,7 @@ function setAuthCookie(res, token) {
     res.cookie('auth', token, {
         httpOnly: true,
         sameSite: 'none', // Allow cross-site cookies
-        secure: false, // Set to false for HTTP localhost
+        secure: true, // Set to false for HTTP localhost
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 }
