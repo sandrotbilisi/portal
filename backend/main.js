@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 3000;
 const UPLOADS_DIR = 'uploads';
+const ORDER_FILE_NAME = '.file-order.json';
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = '7d';
 
@@ -246,6 +247,47 @@ function ensureDirectoryExists(dirPath) {
     }
 }
 
+// Get custom file ordering for a directory
+function getCustomOrder(dirPath) {
+    try {
+        const orderFilePath = path.join(dirPath, ORDER_FILE_NAME);
+        if (fs.existsSync(orderFilePath)) {
+            const orderData = JSON.parse(fs.readFileSync(orderFilePath, 'utf8'));
+            return orderData.order || [];
+        }
+    } catch (error) {
+        logger.error('Error reading custom order:', error);
+    }
+    return [];
+}
+
+// Save custom file ordering for a directory
+function saveCustomOrder(dirPath, order) {
+    try {
+        const orderFilePath = path.join(dirPath, ORDER_FILE_NAME);
+        fs.writeFileSync(orderFilePath, JSON.stringify({ order, updated: new Date().toISOString() }, null, 2));
+        return true;
+    } catch (error) {
+        logger.error('Error saving custom order:', error);
+        return false;
+    }
+}
+
+// Apply custom ordering to file list
+function applySortOrder(files, customOrder) {
+    if (!customOrder || customOrder.length === 0) {
+        return files;
+    }
+    
+    const orderMap = new Map(customOrder.map((name, index) => [name, index]));
+    
+    return files.sort((a, b) => {
+        const indexA = orderMap.has(a.name) ? orderMap.get(a.name) : Infinity;
+        const indexB = orderMap.has(b.name) ? orderMap.get(b.name) : Infinity;
+        return indexA - indexB;
+    });
+}
+
 function generateUniqueFilename(originalName) {
     const timestamp = Date.now();
     const ext = path.extname(originalName);
@@ -261,9 +303,14 @@ app.get('/folders', requireAuth, requireRole('admin'), (req, res) => {
         ensureDirectoryExists(UPLOADS_DIR);
         const files = fs.readdirSync(UPLOADS_DIR);
         
-        const filesWithInfo = files
+        let filesWithInfo = files
+            .filter(file => file !== ORDER_FILE_NAME) // Exclude order file
             .map(file => getFileInfo(UPLOADS_DIR, file))
             .filter(info => info !== null);
+        
+        // Apply custom ordering
+        const customOrder = getCustomOrder(UPLOADS_DIR);
+        filesWithInfo = applySortOrder(filesWithInfo, customOrder);
         
         res.json({
             success: true,
@@ -302,9 +349,14 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
         }
         
         const files = fs.readdirSync(fullPath);
-        const filesWithInfo = files
+        let filesWithInfo = files
+            .filter(file => file !== ORDER_FILE_NAME) // Exclude order file
             .map(file => getFileInfo(fullPath, file))
             .filter(info => info !== null);
+        
+        // Apply custom ordering
+        const customOrder = getCustomOrder(fullPath);
+        filesWithInfo = applySortOrder(filesWithInfo, customOrder);
         
         res.json({
             success: true,
@@ -527,6 +579,50 @@ app.put(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to rename file or folder',
+            error: error.message
+        });
+    }
+});
+
+// Update file order
+app.post('/folders/order', requireAuth, requireRole('admin'), (req, res) => {
+    try {
+        const { folderPath = '', order } = req.body;
+        
+        if (!Array.isArray(order)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Order must be an array of file names'
+            });
+        }
+        
+        const fullPath = path.join(UPLOADS_DIR, folderPath);
+        
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Folder not found'
+            });
+        }
+        
+        const success = saveCustomOrder(fullPath, order);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: 'File order updated successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to save file order'
+            });
+        }
+    } catch (error) {
+        logger.error('Error updating file order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update file order',
             error: error.message
         });
     }
