@@ -22,7 +22,11 @@ export default function LoginPage() {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
       const role = res.data?.data?.role;
       if (role === 'admin') {
-        router.replace('/');
+        // Redirect admins to admin dashboard
+        router.replace('/admin');
+      } else if (role === 'user') {
+        // Redirect regular users to user dashboard
+        router.replace('/user');
       } else {
         router.replace('/unauthorized');
       }
@@ -36,7 +40,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 p-6">
       <div className="w-full max-w-md bg-gray-800/60 border border-gray-700/40 rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-2xl font-semibold text-white mb-6 text-center">Admin Login</h1>
+        <h1 className="text-2xl font-semibold text-white mb-6 text-center">Login</h1>
         {error && (
           <div className="mb-4 text-red-300 bg-red-900/30 border border-red-700/40 rounded-lg p-3">{error}</div>
         )}

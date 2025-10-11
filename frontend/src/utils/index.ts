@@ -69,14 +69,8 @@ export const getFileIcon = (type: string, name: string) => {
     case 'flac':
       return '🎵';
     case 'pdf':
-      return (
-        <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center shadow-lg">
-          <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-          </svg>
-          <div className="absolute text-xs font-bold text-white" style={{fontSize: '8px', marginTop: '8px'}}>PDF</div>
-        </div>
-      );
+      return '📕';
+
     case 'doc':
     case 'docx':
       return '📝';
