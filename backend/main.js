@@ -93,10 +93,11 @@ function requireAuth(req, res, next) {
     }
 }
 
-function requireRole(role) {
+function requireRole(roles) {
     return (req, res, next) => {
         if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' });
-        if (req.user.role !== role) return res.status(403).json({ success: false, message: 'Forbidden' });
+        const allowedRoles = Array.isArray(roles) ? roles : [roles];
+        if (!allowedRoles.includes(req.user.role)) return res.status(403).json({ success: false, message: 'Forbidden' });
         next();
     };
 }
@@ -142,7 +143,7 @@ app.get('/auth/me', (req, res) => {
 });
 
 // Admin create lower-role users
-app.post('/users', requireAuth, requireRole('admin'), (req, res) => {
+app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { username, password, role } = req.body || {};
         if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password required' });
@@ -161,7 +162,7 @@ app.post('/users', requireAuth, requireRole('admin'), (req, res) => {
     }
 });
 
-app.get('/users', requireAuth, requireRole('admin'), (req, res) => {
+app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
     const list = users.map(u => ({ id: u.id, username: u.username, role: u.role }));
     res.json({ success: true, data: list });
 });
@@ -298,7 +299,7 @@ function generateUniqueFilename(originalName) {
 // Routes (protected)
 
 // List all items in the uploads folder
-app.get('/folders', requireAuth, requireRole('admin','user'), (req, res) => {
+app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
     try {
         ensureDirectoryExists(UPLOADS_DIR);
         const files = fs.readdirSync(UPLOADS_DIR);
@@ -327,7 +328,7 @@ app.get('/folders', requireAuth, requireRole('admin','user'), (req, res) => {
 });
 
 // List items in a specific folder (handles nested paths)
-app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin','user'), (req, res) => {
+app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
     try {
         // Get the full path from the URL
         const fullUrlPath = req.params[0];
@@ -373,7 +374,7 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin','user'), (req, res
 });
 
 // Create a new folder
-app.post('/folders', requireAuth, requireRole('admin'), (req, res) => {
+app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { folderName, folderPath: folderPathParam } = req.body;
         
@@ -411,7 +412,7 @@ app.post('/folders', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Upload a file
-app.post('/files', requireAuth, requireRole('admin'), (req, res) => {
+app.post('/files', requireAuth, requireRole(['admin']), (req, res) => {
     const upload = multer();
     
     upload.fields([
@@ -484,7 +485,7 @@ app.use((error, req, res, next) => {
 });
 
 // Delete a file or folder
-app.delete(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
+app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const filePath = req.params[0];
         const fullPath = path.join(UPLOADS_DIR, filePath);
@@ -523,7 +524,7 @@ app.delete(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Rename a file or folder
-app.put(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
+app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const filePath = req.params[0];
         const { newName } = req.body;
@@ -585,7 +586,7 @@ app.put(/^\/files\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Update file order
-app.post('/folders/order', requireAuth, requireRole('admin'), (req, res) => {
+app.post('/folders/order', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { folderPath = '', order } = req.body;
         
@@ -629,7 +630,7 @@ app.post('/folders/order', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Add YouTube video
-app.post('/youtube', requireAuth, requireRole('admin'), (req, res) => {
+app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { url, title, folderPath = '' } = req.body;
         
