@@ -298,7 +298,7 @@ function generateUniqueFilename(originalName) {
 // Routes (protected)
 
 // List all items in the uploads folder
-app.get('/folders', requireAuth, requireRole('admin'), (req, res) => {
+app.get('/folders', requireAuth, requireRole('admin','user'), (req, res) => {
     try {
         ensureDirectoryExists(UPLOADS_DIR);
         const files = fs.readdirSync(UPLOADS_DIR);
@@ -327,7 +327,7 @@ app.get('/folders', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // List items in a specific folder (handles nested paths)
-app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin'), (req, res) => {
+app.get(/^\/folders\/(.+)$/, requireAuth, requireRole('admin','user'), (req, res) => {
     try {
         // Get the full path from the URL
         const fullUrlPath = req.params[0];
