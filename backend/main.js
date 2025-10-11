@@ -13,11 +13,15 @@ const PORT = 3000;
 const UPLOADS_DIR = 'uploads';
 const ORDER_FILE_NAME = '.file-order.json';
 const USERS_DB_FILE = 'users.json';
+const BRANCHES_DB_FILE = 'branches.json';
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = '7d';
 
 // File-based user database
 let users = [];
+
+// File-based branches database
+let branches = [];
 
 // Load users from file
 function loadUsers() {
@@ -36,7 +40,8 @@ function loadUsers() {
                     role: 'admin',
                     name: 'System',
                     lastname: 'Administrator',
-                    personalNumber: '000000-0000'
+                    personalNumber: '000000-0000',
+                    branchId: '1'
                 }
             ];
             saveUsers();
@@ -62,8 +67,44 @@ function findUserByUsername(username) {
     return users.find(u => u.username.toLowerCase() === String(username || '').toLowerCase());
 }
 
-// Load users on startup
+// Load branches from file
+function loadBranches() {
+    try {
+        if (fs.existsSync(BRANCHES_DB_FILE)) {
+            const data = fs.readFileSync(BRANCHES_DB_FILE, 'utf8');
+            branches = JSON.parse(data);
+            logger.info(`Loaded ${branches.length} branches from database`);
+        } else {
+            // Create default branch if no branches file exists
+            branches = [
+                {
+                    id: '1',
+                    name: 'Main Office',
+                    location: 'Headquarters'
+                }
+            ];
+            saveBranches();
+            logger.info('Created default branch');
+        }
+    } catch (error) {
+        logger.error('Error loading branches:', error);
+        branches = [];
+    }
+}
+
+// Save branches to file
+function saveBranches() {
+    try {
+        fs.writeFileSync(BRANCHES_DB_FILE, JSON.stringify(branches, null, 2));
+        logger.info('Branches saved to database');
+    } catch (error) {
+        logger.error('Error saving branches:', error);
+    }
+}
+
+// Load users and branches on startup
 loadUsers();
+loadBranches();
 
 function generateToken(user) {
     return jwt.sign({ sub: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -176,6 +217,9 @@ app.get('/auth/me', (req, res) => {
         const user = users.find(u => u.id === payload.sub);
         if (!user) return res.json({ success: true, data: null });
         
+        // Get branch information
+        const branch = branches.find(b => b.id === user.branchId);
+        
         return res.json({ 
             success: true, 
             data: { 
@@ -183,7 +227,10 @@ app.get('/auth/me', (req, res) => {
                 role: user.role,
                 name: user.name || '',
                 lastname: user.lastname || '',
-                personalNumber: user.personalNumber || ''
+                personalNumber: user.personalNumber || '',
+                branchId: user.branchId || '',
+                branchName: branch ? branch.name : 'N/A',
+                branchLocation: branch ? branch.location : 'N/A'
             } 
         });
     } catch {
@@ -194,7 +241,7 @@ app.get('/auth/me', (req, res) => {
 // Admin create lower-role users
 app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const { username, password, role, name, lastname, personalNumber } = req.body || {};
+        const { username, password, role, name, lastname, personalNumber, branchId } = req.body || {};
         
         // Validate required fields
         if (!username || !password) {
@@ -203,10 +250,19 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
         if (!name || !lastname || !personalNumber) {
             return res.status(400).json({ success: false, message: 'Name, lastname, and personal number required' });
         }
+        if (!branchId) {
+            return res.status(400).json({ success: false, message: 'Branch is required' });
+        }
         
         // Check if user exists
         if (findUserByUsername(username)) {
             return res.status(400).json({ success: false, message: 'User exists' });
+        }
+        
+        // Validate branch exists
+        const branch = branches.find(b => b.id === branchId);
+        if (!branch) {
+            return res.status(400).json({ success: false, message: 'Invalid branch' });
         }
         
         // Generate new ID
@@ -219,13 +275,14 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             role: role === 'admin' ? 'admin' : 'user',
             name: String(name).trim(),
             lastname: String(lastname).trim(),
-            personalNumber: String(personalNumber).trim()
+            personalNumber: String(personalNumber).trim(),
+            branchId: String(branchId)
         };
         
         users.push(newUser);
         saveUsers();
         
-        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname})`);
+        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname}) - Branch: ${branch.name}`);
         
         return res.json({ 
             success: true, 
@@ -235,7 +292,9 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
                 role: newUser.role,
                 name: newUser.name,
                 lastname: newUser.lastname,
-                personalNumber: newUser.personalNumber
+                personalNumber: newUser.personalNumber,
+                branchId: newUser.branchId,
+                branchName: branch.name
             } 
         });
     } catch (error) {
@@ -245,15 +304,89 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
-    const list = users.map(u => ({ 
-        id: u.id, 
-        username: u.username, 
-        role: u.role,
-        name: u.name || '',
-        lastname: u.lastname || '',
-        personalNumber: u.personalNumber || ''
-    }));
+    const list = users.map(u => {
+        const branch = branches.find(b => b.id === u.branchId);
+        return {
+            id: u.id, 
+            username: u.username, 
+            role: u.role,
+            name: u.name || '',
+            lastname: u.lastname || '',
+            personalNumber: u.personalNumber || '',
+            branchId: u.branchId || '',
+            branchName: branch ? branch.name : 'N/A'
+        };
+    });
     res.json({ success: true, data: list });
+});
+
+// Branches endpoints
+app.get('/branches', requireAuth, requireRole(['admin']), (req, res) => {
+    res.json({ success: true, data: branches });
+});
+
+app.post('/branches', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const { name, location } = req.body || {};
+        
+        if (!name || !location) {
+            return res.status(400).json({ success: false, message: 'Name and location are required' });
+        }
+        
+        // Check if branch name exists
+        if (branches.find(b => b.name.toLowerCase() === name.toLowerCase().trim())) {
+            return res.status(400).json({ success: false, message: 'Branch name already exists' });
+        }
+        
+        // Generate new ID
+        const maxId = branches.length > 0 ? Math.max(...branches.map(b => parseInt(b.id) || 0)) : 0;
+        
+        const newBranch = {
+            id: String(maxId + 1),
+            name: String(name).trim(),
+            location: String(location).trim()
+        };
+        
+        branches.push(newBranch);
+        saveBranches();
+        
+        logger.info(`Branch created: ${newBranch.name} at ${newBranch.location}`);
+        
+        return res.json({ success: true, data: newBranch });
+    } catch (error) {
+        logger.error('Create branch error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to create branch' });
+    }
+});
+
+app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if any users are assigned to this branch
+        const usersInBranch = users.filter(u => u.branchId === id);
+        if (usersInBranch.length > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Cannot delete branch. ${usersInBranch.length} user(s) are assigned to this branch.` 
+            });
+        }
+        
+        const index = branches.findIndex(b => b.id === id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, message: 'Branch not found' });
+        }
+        
+        branches.splice(index, 1);
+        saveBranches();
+        
+        logger.info(`Branch deleted: ${id}`);
+        
+        return res.json({ success: true, message: 'Branch deleted successfully' });
+    } catch (error) {
+        logger.error('Delete branch error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to delete branch' });
+    }
 });
 
 // Utility functions
