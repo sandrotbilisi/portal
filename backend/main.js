@@ -55,7 +55,8 @@ app.use((req, res, next) => {
         'http://localhost:3001', 
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
-        'https://home-server.tail7b1d07.ts.net' // Your backend domain
+        'https://home-server.tail7b1d07.ts.net', // Your backend domain
+        'https://localhost:3000',
     ];
     
     if (allowedOrigins.includes(origin)) {
