@@ -8,6 +8,12 @@ const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
 interface MeResponse {
   username: string;
   role: "admin" | "user";
+  name: string;
+  lastname: string;
+  personalNumber: string;
+  branchId: string;
+  branchName: string;
+  branchLocation: string;
 }
 
 export default function RootPage() {
@@ -35,21 +41,21 @@ export default function RootPage() {
         }
       } catch {
         router.replace('/login');
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
     checkAuthAndRedirect();
   }, [router]);
 
-  return (
+        return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 flex items-center justify-center">
       <div className="text-center">
         <div className="inline-block relative mb-4">
-          <div className="w-16 h-16 border-4 border-gray-600 border-t-gray-400 rounded-full animate-spin"></div>
-        </div>
+                <div className="w-16 h-16 border-4 border-gray-600 border-t-gray-400 rounded-full animate-spin"></div>
+              </div>
         <p className="text-gray-300 text-lg">Redirecting...</p>
-      </div>
+            </div>
     </div>
   );
 }

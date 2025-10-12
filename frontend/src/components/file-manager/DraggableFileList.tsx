@@ -27,6 +27,8 @@ interface DraggableFileListProps {
   onRename: (folder: Folder) => void;
   onDelete: (folder: Folder) => void;
   onReorder: (newOrder: Folder[]) => void;
+  onPermissions?: (folder: Folder) => void;
+  isAdmin?: boolean;
 }
 
 export const DraggableFileList: React.FC<DraggableFileListProps> = ({
@@ -36,6 +38,8 @@ export const DraggableFileList: React.FC<DraggableFileListProps> = ({
   onRename,
   onDelete,
   onReorder,
+  onPermissions,
+  isAdmin = false,
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -85,6 +89,8 @@ export const DraggableFileList: React.FC<DraggableFileListProps> = ({
               onFileClick={onFileClick}
               onRename={onRename}
               onDelete={onDelete}
+              onPermissions={onPermissions}
+              isAdmin={isAdmin}
             />
           ))}
         </div>

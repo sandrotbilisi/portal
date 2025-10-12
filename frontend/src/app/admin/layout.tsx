@@ -8,6 +8,12 @@ const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
 interface MeResponse {
   username: string;
   role: "admin" | "user";
+  name: string;
+  lastname: string;
+  personalNumber: string;
+  branchId: string;
+  branchName: string;
+  branchLocation: string;
 }
 
 export default function AdminLayout({

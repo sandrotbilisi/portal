@@ -1,3 +1,10 @@
+export interface FolderPermissions {
+  canView: boolean;
+  canUpload: boolean;
+  canDelete: boolean;
+  canRename: boolean;
+}
+
 export interface Folder {
   name: string;
   type: string;
@@ -8,6 +15,40 @@ export interface Folder {
   title?: string;
   url?: string;
   id?: string;
+  permissions?: FolderPermissions;
+}
+
+export interface RoleRestrictions {
+  [role: string]: {
+    view?: boolean;
+    upload?: boolean;
+    delete?: boolean;
+    rename?: boolean;
+  };
+}
+
+export interface BranchRestrictions {
+  [branchId: string]: {
+    view?: boolean;
+    upload?: boolean;
+    delete?: boolean;
+    rename?: boolean;
+  };
+}
+
+export interface Permission {
+  id: string;
+  folderPath: string;
+  roleRestrictions: RoleRestrictions;
+  branchRestrictions: BranchRestrictions;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  location: string;
 }
 
 export interface UploadProgress {

@@ -12,6 +12,8 @@ interface DraggableFileItemProps {
   onFileClick: (folder: Folder) => void;
   onRename: (folder: Folder) => void;
   onDelete: (folder: Folder) => void;
+  onPermissions?: (folder: Folder) => void;
+  isAdmin?: boolean;
 }
 
 export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
@@ -20,6 +22,8 @@ export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
   onFileClick,
   onRename,
   onDelete,
+  onPermissions,
+  isAdmin = false,
 }) => {
   const {
     attributes,
@@ -61,6 +65,16 @@ export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
     e.preventDefault();
     e.stopPropagation();
     onDelete(folder);
+    const menu = e.currentTarget.closest('.absolute');
+    if (menu) menu.classList.add('hidden');
+  };
+
+  const handlePermissionsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onPermissions) {
+      onPermissions(folder);
+    }
     const menu = e.currentTarget.closest('.absolute');
     if (menu) menu.classList.add('hidden');
   };
@@ -194,6 +208,22 @@ export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
           {/* Dropdown menu */}
           <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-xl hidden z-30">
             <div className="py-1">
+              {isAdmin && folder.type === 'folder' && onPermissions && (
+                <button
+                  onClick={handlePermissionsClick}
+                  className="w-full px-4 py-2 text-left text-blue-400 hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <span>Permissions</span>
+                </button>
+              )}
               <button
                 onClick={handleRenameClick}
                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center space-x-2"

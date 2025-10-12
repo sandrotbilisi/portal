@@ -8,6 +8,12 @@ const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
 interface MeResponse {
   username: string;
   role: "admin" | "user";
+  name: string;
+  lastname: string;
+  personalNumber: string;
+  branchId: string;
+  branchName: string;
+  branchLocation: string;
 }
 
 export default function AdminProfilePage() {
@@ -131,15 +137,27 @@ export default function AdminProfilePage() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">{me?.username}</h2>
+                  <h2 className="text-2xl font-bold text-white">{me?.name} {me?.lastname}</h2>
                   <p className="text-gray-400 capitalize">{me?.role}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="flex justify-between py-3 border-b border-gray-700/30">
+                  <span className="text-gray-400">Full Name</span>
+                  <span className="text-white font-medium">{me?.name} {me?.lastname}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-gray-700/30">
+                  <span className="text-gray-400">Personal Number</span>
+                  <span className="text-white font-medium">{me?.personalNumber}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-gray-700/30">
                   <span className="text-gray-400">Username</span>
                   <span className="text-white font-medium">{me?.username}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-gray-700/30">
+                  <span className="text-gray-400">Branch</span>
+                  <span className="text-white font-medium">{me?.branchName} - {me?.branchLocation}</span>
                 </div>
                 <div className="flex justify-between py-3 border-b border-gray-700/30">
                   <span className="text-gray-400">Role</span>

@@ -3,6 +3,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DraggableFileList } from "../../components/file-manager/DraggableFileList";
+import { PermissionsModal } from "../../components/modals/PermissionsModal";
 
 // API Configuration - Change this to easily switch between environments
 // Examples:
@@ -62,6 +63,8 @@ export default function Home() {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [documentType, setDocumentType] = useState<string>('');
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const [permissionsFolder, setPermissionsFolder] = useState<Folder | null>(null);
 
   // Configure axios to send cookies
   axios.defaults.withCredentials = true;
@@ -332,11 +335,14 @@ export default function Home() {
       return;
     }
 
-    // Validate new name (no special characters)
-    const invalidChars = /[<>:"/\\|?*]/;
-    if (invalidChars.test(newItemName)) {
-      setError('Name contains invalid characters');
-      return;
+    // For YouTube videos, we don't need to validate special characters (it's just the title)
+    // For regular files, validate new name (no special characters)
+    if (renameItem.type !== 'youtube') {
+      const invalidChars = /[<>:"/\\|?*]/;
+      if (invalidChars.test(newItemName)) {
+        setError('Name contains invalid characters');
+        return;
+      }
     }
 
     setIsRenaming(true);
@@ -344,19 +350,36 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${renameItem.name}` : renameItem.name;
-      const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
-        newName: newItemName.trim()
-      });
+      
+      // For YouTube videos, we update the JSON content instead of renaming the file
+      if (renameItem.type === 'youtube') {
+        const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
+          updateYouTubeTitle: true,
+          newTitle: newItemName.trim()
+        });
 
-      if (response.data.success) {
-        // Refresh the folder contents
-        await fetchFolders();
-        
-        setIsRenameModalOpen(false);
-        setRenameItem(null);
-        setNewItemName("");
+        if (response.data.success) {
+          await fetchFolders();
+          setIsRenameModalOpen(false);
+          setRenameItem(null);
+          setNewItemName("");
+        } else {
+          setError(response.data.message || 'Failed to update video title');
+        }
       } else {
-        setError(response.data.message || 'Failed to rename item');
+        // Regular file/folder rename
+        const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
+          newName: newItemName.trim()
+        });
+
+        if (response.data.success) {
+          await fetchFolders();
+          setIsRenameModalOpen(false);
+          setRenameItem(null);
+          setNewItemName("");
+        } else {
+          setError(response.data.message || 'Failed to rename item');
+        }
       }
     } catch (err: any) {
       console.error('Rename error:', err);
@@ -395,7 +418,12 @@ export default function Home() {
 
   const openRenameModal = (item: Folder) => {
     setRenameItem(item);
-    setNewItemName(item.name);
+    // For YouTube videos, set the title as the default value, not the filename
+    if (item.type === 'youtube' && item.title) {
+      setNewItemName(item.title);
+    } else {
+      setNewItemName(item.name);
+    }
     setIsRenameModalOpen(true);
     setError(null);
   };
@@ -595,6 +623,18 @@ export default function Home() {
     }
   };
 
+  const openPermissionsModal = (folder: Folder) => {
+    setPermissionsFolder(folder);
+    setIsPermissionsModalOpen(true);
+  };
+
+  const closePermissionsModal = () => {
+    setIsPermissionsModalOpen(false);
+    setPermissionsFolder(null);
+    // Refresh folders to reflect permission changes
+    fetchFolders();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       {/* Subtle animated background */}
@@ -646,6 +686,10 @@ export default function Home() {
                 </svg>
               </button>
               
+              <button
+                onClick={() => router.push('/admin/branches')}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors duration-200"
+              >Branches</button>
               <button
                 onClick={() => router.push('/admin/users')}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors duration-200"
@@ -718,6 +762,22 @@ export default function Home() {
 
           {/* Upload and View Controls */}
           <div className="flex items-center gap-3">
+            {/* Root Folder Permissions Button - Only show when in root */}
+            {!currentPath && (
+              <button
+                onClick={() => {
+                  setPermissionsFolder({ name: 'Root Directory', type: 'folder', size: 0, created: '', modified: '' });
+                  setIsPermissionsModalOpen(true);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all duration-300 hover:scale-105 shadow-lg"
+                title="Configure root folder permissions"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Root Permissions</span>
+              </button>
+            )}
             {/* New Folder Button */}
             <button
               onClick={openCreateFolderModal}
@@ -820,6 +880,8 @@ export default function Home() {
                   onRename={openRenameModal}
                   onDelete={openDeleteModal}
                   onReorder={handleReorder}
+                  onPermissions={openPermissionsModal}
+                  isAdmin={true}
                 />
               )}
             </div>
@@ -983,7 +1045,9 @@ export default function Home() {
                   {renameItem.type === 'folder' ? '📁' : getFileIcon(renameItem.type, renameItem.name)}
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Rename {renameItem.type === 'folder' ? 'Folder' : 'File'}</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {renameItem.type === 'youtube' ? 'Edit Video Title' : `Rename ${renameItem.type === 'folder' ? 'Folder' : 'File'}`}
+              </h2>
               <p className="text-gray-400">
                 {currentPath ? `In: ${currentPath}` : 'In root directory'}
               </p>
@@ -992,22 +1056,22 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Current Name
+                  {renameItem.type === 'youtube' ? 'Current Title' : 'Current Name'}
                 </label>
                 <div className="px-4 py-3 bg-gray-700/30 border border-gray-600/30 rounded-xl text-gray-300">
-                  {renameItem.name}
+                  {renameItem.type === 'youtube' && renameItem.title ? renameItem.title : renameItem.name}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  New Name
+                  {renameItem.type === 'youtube' ? 'New Title' : 'New Name'}
                 </label>
                 <input
                   type="text"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Enter new name..."
+                  placeholder={renameItem.type === 'youtube' ? 'Enter new title...' : 'Enter new name...'}
                   className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-300"
                   onKeyPress={(e) => {
                     if ((e as React.KeyboardEvent<HTMLInputElement>).key === 'Enter') {
@@ -1016,9 +1080,11 @@ export default function Home() {
                   }}
                   autoFocus
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Avoid special characters: &lt; &gt; : " / \ | ? *
-                </p>
+                {renameItem.type !== 'youtube' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Avoid special characters: &lt; &gt; : " / \ | ? *
+                  </p>
+                )}
               </div>
 
               {error && (
@@ -1042,20 +1108,20 @@ export default function Home() {
                 </button>
                 <button
                   onClick={handleRename}
-                  disabled={isRenaming || !newItemName.trim() || newItemName === renameItem.name}
+                  disabled={isRenaming || !newItemName.trim() || (renameItem.type === 'youtube' ? newItemName === renameItem.title : newItemName === renameItem.name)}
                   className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   {isRenaming ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Renaming...</span>
+                      <span>{renameItem.type === 'youtube' ? 'Updating...' : 'Renaming...'}</span>
                     </>
                   ) : (
                     <>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      <span>Rename</span>
+                      <span>{renameItem.type === 'youtube' ? 'Update' : 'Rename'}</span>
                     </>
                   )}
                 </button>
@@ -1622,6 +1688,22 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Permissions Modal */}
+      {permissionsFolder && (
+        <PermissionsModal
+          isOpen={isPermissionsModalOpen}
+          onClose={closePermissionsModal}
+          folderPath={
+            permissionsFolder.name === 'Root Directory' 
+              ? '' 
+              : currentPath 
+                ? `${currentPath}/${permissionsFolder.name}` 
+                : permissionsFolder.name
+          }
+          folderName={permissionsFolder.name}
+        />
       )}
     </div>
   );
