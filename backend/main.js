@@ -787,7 +787,7 @@ function generateUniqueFilename(originalName) {
         // Keep Unicode characters (Georgian, Russian, etc.), only remove dangerous filesystem chars
         const safeName = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
         
-        return `${safeName}-${timestamp}${ext}`;
+        return `${safeName}${ext}`;
     } catch (error) {
         logger.error('Error generating filename:', error);
         return `file-${Date.now()}${path.extname(originalName)}`;
