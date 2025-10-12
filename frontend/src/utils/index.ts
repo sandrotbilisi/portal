@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // File size formatting
 export const formatFileSize = (bytes: number): string => {

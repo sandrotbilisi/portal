@@ -10,7 +10,7 @@ import { PermissionsModal } from "../../components/modals/PermissionsModal";
 // Development: "http://localhost:3000"
 // Production: "https://your-api-domain.com"
 // Staging: "https://staging-api.your-domain.com"
-const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface Folder {
   name: string;

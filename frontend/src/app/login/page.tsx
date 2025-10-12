@@ -3,7 +3,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
-const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function LoginPage() {
   const router = useRouter();

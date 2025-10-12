@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 
-const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface Message {
   id: string;

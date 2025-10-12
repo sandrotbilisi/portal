@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Permission, Branch } from '../../types';
 
-const API_BASE_URL = "https://home-server.tail7b1d07.ts.net";
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface PermissionsModalProps {
   isOpen: boolean;
