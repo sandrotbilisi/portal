@@ -268,6 +268,7 @@ const allowedIPs = [
     '212.58.114.23',
 ];
 
+app.set('trust proxy', true); // if behind a proxy
 
 // Middleware to block disallowed IPs
 app.use((req, res, next) => {
