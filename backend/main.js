@@ -853,10 +853,38 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
         
         ensureDirectoryExists(fullPath);
         
+        // Auto-create read-only permissions for new folders
+        const newFolderPath = folderPathParam ? `${folderPathParam}/${folderName}` : folderName;
+        
+        // Create default read-only permission (view only, no upload/delete/rename)
+        const defaultPermission = {
+            id: String(Date.now()),
+            folderPath: newFolderPath,
+            roleRestrictions: {
+                user: {
+                    view: true,
+                    upload: false,
+                    delete: false,
+                    rename: false
+                }
+            },
+            branchRestrictions: {},
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        permissions.push(defaultPermission);
+        savePermissions();
+        
+        logger.info(`Folder created with read-only permissions: ${newFolderPath}`);
+        
         res.json({
             success: true,
-            message: 'Folder created successfully',
-            data: { path: fullPath }
+            message: 'Folder created successfully with read-only permissions',
+            data: { 
+                path: fullPath,
+                permission: defaultPermission
+            }
         });
     } catch (error) {
         logger.error('Error creating folder:', error);
