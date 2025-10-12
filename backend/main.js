@@ -890,7 +890,11 @@ app.get('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 // Get permission for a specific folder
 app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const folderPath = decodeURIComponent(req.params[0]);
+        let folderPath = decodeURIComponent(req.params[0]);
+        // Special handling for root directory
+        if (folderPath === '__root__') {
+            folderPath = '';
+        }
         const permission = permissions.find(p => p.folderPath === folderPath);
         
         res.json({
@@ -912,7 +916,8 @@ app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { folderPath, roleRestrictions, branchRestrictions } = req.body;
         
-        if (!folderPath) {
+        // Allow empty string for root directory, but not undefined/null
+        if (folderPath === undefined || folderPath === null) {
             return res.status(400).json({
                 success: false,
                 message: 'Folder path is required'
@@ -934,11 +939,11 @@ app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
         if (existingIndex !== -1) {
             // Update existing permission
             permissions[existingIndex] = permission;
-            logger.info(`Permission updated for folder: ${folderPath}`);
+            logger.info(`Permission updated for folder: ${folderPath || 'root'}`);
         } else {
             // Create new permission
             permissions.push(permission);
-            logger.info(`Permission created for folder: ${folderPath}`);
+            logger.info(`Permission created for folder: ${folderPath || 'root'}`);
         }
         
         savePermissions();
@@ -961,7 +966,11 @@ app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 // Delete permission for a folder
 app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const folderPath = decodeURIComponent(req.params[0]);
+        let folderPath = decodeURIComponent(req.params[0]);
+        // Special handling for root directory
+        if (folderPath === '__root__') {
+            folderPath = '';
+        }
         
         const index = permissions.findIndex(p => p.folderPath === folderPath);
         
@@ -975,7 +984,7 @@ app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, r
         permissions.splice(index, 1);
         savePermissions();
         
-        logger.info(`Permission deleted for folder: ${folderPath}`);
+        logger.info(`Permission deleted for folder: ${folderPath || 'root'}`);
         
         res.json({
             success: true,
