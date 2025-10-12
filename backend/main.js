@@ -775,10 +775,23 @@ function applySortOrder(files, customOrder) {
 }
 
 function generateUniqueFilename(originalName) {
-    const timestamp = Date.now();
-    const ext = path.extname(originalName);
-    const name = path.basename(originalName, ext);
-    return `${name}-${timestamp}${ext}`;
+    try {
+        // Decode filename properly - multer receives as Latin-1 but browsers send UTF-8
+        const buffer = Buffer.from(originalName, 'latin1');
+        const decodedName = buffer.toString('utf8');
+        
+        const timestamp = Date.now();
+        const ext = path.extname(decodedName);
+        const name = path.basename(decodedName, ext);
+        
+        // Keep Unicode characters (Georgian, Russian, etc.), only remove dangerous filesystem chars
+        const safeName = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+        
+        return `${safeName}-${timestamp}${ext}`;
+    } catch (error) {
+        logger.error('Error generating filename:', error);
+        return `file-${Date.now()}${path.extname(originalName)}`;
+    }
 }
 
 // Routes (protected)
@@ -1468,7 +1481,9 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
         };
         
         // Save as JSON file
-        const filename = `${title.trim().replace(/[^a-zA-Z0-9\s\-_]/g, '')}-${Date.now()}.json`;
+        // Keep Unicode characters, only remove dangerous filesystem characters
+        const safeTitle = title.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+        const filename = `${safeTitle}-${Date.now()}.json`;
         const filePath = path.join(destinationPath, filename);
         
         fs.writeFileSync(filePath, JSON.stringify(videoData, null, 2));
