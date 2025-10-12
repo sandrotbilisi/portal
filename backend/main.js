@@ -868,9 +868,9 @@ app.get('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Get permission for a specific folder
-app.get('/permissions/:folderPath(*)', requireAuth, requireRole(['admin']), (req, res) => {
+app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const folderPath = req.params.folderPath;
+        const folderPath = decodeURIComponent(req.params[0]);
         const permission = permissions.find(p => p.folderPath === folderPath);
         
         res.json({
@@ -939,9 +939,9 @@ app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Delete permission for a folder
-app.delete('/permissions/:folderPath(*)', requireAuth, requireRole(['admin']), (req, res) => {
+app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const folderPath = req.params.folderPath;
+        const folderPath = decodeURIComponent(req.params[0]);
         
         const index = permissions.findIndex(p => p.folderPath === folderPath);
         
