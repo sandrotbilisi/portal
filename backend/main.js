@@ -12,6 +12,7 @@ const app = express();
 const PORT = 3000;
 const UPLOADS_DIR = 'uploads';
 const ORDER_FILE_NAME = '.file-order.json';
+const METADATA_FILE_NAME = '.file-metadata.json';
 const USERS_DB_FILE = 'users.json';
 const BRANCHES_DB_FILE = 'branches.json';
 const PERMISSIONS_DB_FILE = 'permissions.json';
@@ -254,6 +255,25 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
+    }
+    next();
+});
+
+// Allowed IPs
+const allowedIPs = [
+    '212.58.119.9',
+    '212.58.119.0',
+    '188.169.142.160',
+    '212.58.114.123',
+    '212.58.114.23',
+];
+
+
+// Middleware to block disallowed IPs
+app.use((req, res, next) => {
+    const clientIP = req.ip || req.connection.remoteAddress;
+    if (!allowedIPs.includes(clientIP)) {
+        return res.status(403).json({ success: false, message: 'Forbidden: IP not allowed' });
     }
     next();
 });
@@ -587,13 +607,19 @@ function getFileInfo(filePath, fileName) {
         const fullPath = path.join(filePath, fileName);
         const stats = fs.statSync(fullPath);
         
+        // Get metadata for all files in this directory
+        const metadata = getFileMetadata(filePath);
+        const fileMetadata = metadata[fileName] || null;
+        
         if (stats.isDirectory()) {
             return {
                 name: fileName,
                 type: 'folder',
                 size: getFolderSize(fullPath),
                 created: stats.birthtime,
-                modified: stats.mtime
+                modified: stats.mtime,
+                uploadedBy: fileMetadata?.uploadedBy || null,
+                uploadedAt: fileMetadata?.uploadedAt || null
             };
         } else {
             // Check if it's a YouTube video JSON file
@@ -612,7 +638,9 @@ function getFileInfo(filePath, fileName) {
                             url: videoData.url,
                             size: stats.size,
                             created: stats.birthtime,
-                            modified: stats.mtime
+                            modified: stats.mtime,
+                            uploadedBy: videoData.uploadedBy || fileMetadata?.uploadedBy || null,
+                            uploadedAt: videoData.uploadedAt || fileMetadata?.uploadedAt || null
                         };
                     }
                 } catch (error) {
@@ -625,7 +653,9 @@ function getFileInfo(filePath, fileName) {
                 type: mime.lookup(fileName) || 'unknown',
                 size: stats.size,
                 created: stats.birthtime,
-                modified: stats.mtime
+                modified: stats.mtime,
+                uploadedBy: fileMetadata?.uploadedBy || null,
+                uploadedAt: fileMetadata?.uploadedAt || null
             };
         }
     } catch (error) {
@@ -666,6 +696,51 @@ function saveCustomOrder(dirPath, order) {
     }
 }
 
+// Get file metadata (uploader info, etc.)
+function getFileMetadata(dirPath) {
+    try {
+        const metadataFilePath = path.join(dirPath, METADATA_FILE_NAME);
+        if (fs.existsSync(metadataFilePath)) {
+            const metadataContent = JSON.parse(fs.readFileSync(metadataFilePath, 'utf8'));
+            return metadataContent.files || {};
+        }
+    } catch (error) {
+        logger.error('Error reading file metadata:', error);
+    }
+    return {};
+}
+
+// Save file metadata (uploader info, etc.)
+function saveFileMetadata(dirPath, fileName, userId, username) {
+    try {
+        const metadataFilePath = path.join(dirPath, METADATA_FILE_NAME);
+        let metadata = { files: {} };
+        
+        // Load existing metadata if it exists
+        if (fs.existsSync(metadataFilePath)) {
+            try {
+                metadata = JSON.parse(fs.readFileSync(metadataFilePath, 'utf8'));
+            } catch (e) {
+                logger.warn('Failed to parse existing metadata, creating new');
+            }
+        }
+        
+        // Update metadata for this file
+        metadata.files = metadata.files || {};
+        metadata.files[fileName] = {
+            uploadedBy: username,
+            uploadedById: userId,
+            uploadedAt: new Date().toISOString()
+        };
+        
+        fs.writeFileSync(metadataFilePath, JSON.stringify(metadata, null, 2));
+        return true;
+    } catch (error) {
+        logger.error('Error saving file metadata:', error);
+        return false;
+    }
+}
+
 // Apply custom ordering to file list
 function applySortOrder(files, customOrder) {
     if (!customOrder || customOrder.length === 0) {
@@ -697,7 +772,7 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
         const files = fs.readdirSync(UPLOADS_DIR);
         
         let filesWithInfo = files
-            .filter(file => file !== ORDER_FILE_NAME) // Exclude order file
+            .filter(file => file !== ORDER_FILE_NAME && file !== METADATA_FILE_NAME) // Exclude order and metadata files
             .map(file => getFileInfo(UPLOADS_DIR, file))
             .filter(info => info !== null);
         
@@ -780,7 +855,7 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
         
         const files = fs.readdirSync(fullPath);
         let filesWithInfo = files
-            .filter(file => file !== ORDER_FILE_NAME) // Exclude order file
+            .filter(file => file !== ORDER_FILE_NAME && file !== METADATA_FILE_NAME) // Exclude order and metadata files
             .map(file => getFileInfo(fullPath, file))
             .filter(info => info !== null);
         
@@ -853,6 +928,12 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
         }
         
         ensureDirectoryExists(fullPath);
+        
+        // Save metadata about who created the folder
+        const user = users.find(u => u.id === req.user.sub);
+        const creatorName = user ? `${user.name} ${user.lastname}` : req.user.username;
+        const parentPath = path.join(UPLOADS_DIR, folderPathParam || '');
+        saveFileMetadata(parentPath, folderName, req.user.sub, creatorName);
         
         // Auto-create read-only permissions for new folders
         const newFolderPath = folderPathParam ? `${folderPathParam}/${folderName}` : folderName;
@@ -1077,7 +1158,12 @@ app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
             // Save file
             fs.writeFileSync(filePath, file.buffer);
             
-            logger.info(`File uploaded: ${filePath}`);
+            // Save metadata about who uploaded the file
+            const user = users.find(u => u.id === req.user.sub);
+            const uploaderName = user ? `${user.name} ${user.lastname}` : req.user.username;
+            saveFileMetadata(destinationPath, filename, req.user.sub, uploaderName);
+            
+            logger.info(`File uploaded: ${filePath} by ${uploaderName}`);
             
             res.json({
                 success: true,
@@ -1086,7 +1172,8 @@ app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
                     originalname: file.originalname,
                     filename: filename,
                     path: filePath,
-                    size: file.size
+                    size: file.size,
+                    uploadedBy: uploaderName
                 }
             });
         } catch (error) {
@@ -1345,6 +1432,10 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
         const destinationPath = path.join(UPLOADS_DIR, folderPath);
         ensureDirectoryExists(destinationPath);
         
+        // Get uploader information
+        const user = users.find(u => u.id === req.user.sub);
+        const uploaderName = user ? `${user.name} ${user.lastname}` : req.user.username;
+        
         // Create video metadata
         const videoData = {
             id: videoId,
@@ -1353,7 +1444,9 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
             thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
             type: 'youtube',
             created: new Date().toISOString(),
-            modified: new Date().toISOString()
+            modified: new Date().toISOString(),
+            uploadedBy: uploaderName,
+            uploadedAt: new Date().toISOString()
         };
         
         // Save as JSON file
@@ -1362,7 +1455,10 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
         
         fs.writeFileSync(filePath, JSON.stringify(videoData, null, 2));
         
-        logger.info(`YouTube video added: ${title} (${videoId})`);
+        // Also save to metadata file
+        saveFileMetadata(destinationPath, filename, req.user.sub, uploaderName);
+        
+        logger.info(`YouTube video added: ${title} (${videoId}) by ${uploaderName}`);
         
         res.json({
             success: true,
