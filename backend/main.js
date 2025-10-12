@@ -708,7 +708,16 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
         filesWithInfo = applySortOrder(filesWithInfo, customOrder);
         
         // Add permission info for each folder (for frontend to know what actions are allowed)
+        let currentFolderPermissions = null;
         if (req.user.role !== 'admin') {
+            // Check permissions for current folder (for upload capability)
+            currentFolderPermissions = {
+                canView: true, // They're already viewing it
+                canUpload: checkFolderPermission('', req.user.sub, 'upload'),
+                canDelete: checkFolderPermission('', req.user.sub, 'delete'),
+                canRename: checkFolderPermission('', req.user.sub, 'rename')
+            };
+            
             filesWithInfo = filesWithInfo.map(file => {
                 const folderPath = file.name;
                 return {
@@ -725,7 +734,8 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
         
         res.json({
             success: true,
-            data: filesWithInfo
+            data: filesWithInfo,
+            currentFolderPermissions
         });
     } catch (error) {
         logger.error('Error listing folders:', error);
@@ -781,7 +791,16 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
         filesWithInfo = applySortOrder(filesWithInfo, customOrder);
         
         // Add permission info for each folder (for frontend to know what actions are allowed)
+        let currentFolderPermissions = null;
         if (req.user.role !== 'admin') {
+            // Check permissions for current folder (for upload capability)
+            currentFolderPermissions = {
+                canView: true, // They're already viewing it
+                canUpload: checkFolderPermission(fullUrlPath, req.user.sub, 'upload'),
+                canDelete: checkFolderPermission(fullUrlPath, req.user.sub, 'delete'),
+                canRename: checkFolderPermission(fullUrlPath, req.user.sub, 'rename')
+            };
+            
             filesWithInfo = filesWithInfo.map(file => {
                 const folderPath = fullUrlPath ? `${fullUrlPath}/${file.name}` : file.name;
                 return {
@@ -798,7 +817,8 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
         
         res.json({
             success: true,
-            data: filesWithInfo
+            data: filesWithInfo,
+            currentFolderPermissions
         });
     } catch (error) {
         logger.error('Error listing folder contents:', error);
