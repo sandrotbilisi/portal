@@ -267,7 +267,8 @@ const allowedIPs = [
     '212.58.114.123', // kazchensky 19
     '212.58.114.23', // Kobaladze 8a
     '100.101.119.125', // Alex
-    '5.512.50.154',// Vepkhvia
+    '5.152.50.154',// Vepkhvia
+    
     '2a0b:6204:1ad8:d900:cd6:48c4:960c:1f87', // irma
 ];
 
