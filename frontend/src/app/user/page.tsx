@@ -78,13 +78,16 @@ export default function UserDashboard() {
     getMe();
   }, []);
 
-  const fetchFolders = async () => {
+  const fetchFolders = async (retries = 1) => {
     try {
       setLoading(true);
       const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        timeout: 10000 // 10 second timeout
+      });
       if (response.data.success) {
         setFolders(response.data.data);
+        setError(null); // Clear any previous errors
         
         // Check upload permission for current folder
         if (response.data.currentFolderPermissions) {
@@ -97,8 +100,16 @@ export default function UserDashboard() {
       } else {
         setError(response.data.message || 'Failed to fetch files');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching files:', err);
+      
+      // Retry once on network error
+      if (retries > 0 && (err.code === 'ECONNABORTED' || err.message === 'Network Error')) {
+        console.log('Retrying folder fetch...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return fetchFolders(retries - 1);
+      }
+      
       setError('Failed to connect to server');
     } finally {
       setLoading(false);

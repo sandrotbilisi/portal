@@ -65,22 +65,34 @@ export default function Home() {
   const [documentType, setDocumentType] = useState<string>('');
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [permissionsFolder, setPermissionsFolder] = useState<Folder | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Configure axios to send cookies
   axios.defaults.withCredentials = true;
 
-  const fetchFolders = async () => {
+  const fetchFolders = async (retries = 1) => {
     try {
       setLoading(true);
       const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        timeout: 10000 // 10 second timeout
+      });
       if (response.data.success) {
         setFolders(response.data.data);
+        setError(null); // Clear any previous errors
       } else {
         setError(response.data.message || 'Failed to fetch folders');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching folders:', err);
+      
+      // Retry once on network error
+      if (retries > 0 && (err.code === 'ECONNABORTED' || err.message === 'Network Error')) {
+        console.log('Retrying folder fetch...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return fetchFolders(retries - 1);
+      }
+      
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
@@ -306,6 +318,12 @@ export default function Home() {
         
         setIsCreateFolderModalOpen(false);
         setNewFolderName("");
+        
+        // Show success message with info about auto-created permissions
+        setSuccessMessage(`Folder "${newFolderName.trim()}" created with read-only permissions. Click the folder's menu to modify permissions.`);
+        
+        // Auto-dismiss success message after 6 seconds
+        setTimeout(() => setSuccessMessage(null), 6000);
       } else {
         setError(response.data.message || 'Failed to create folder');
       }
@@ -628,11 +646,16 @@ export default function Home() {
     setIsPermissionsModalOpen(true);
   };
 
-  const closePermissionsModal = () => {
+  const closePermissionsModal = async () => {
     setIsPermissionsModalOpen(false);
     setPermissionsFolder(null);
     // Refresh folders to reflect permission changes
-    fetchFolders();
+    try {
+      await fetchFolders();
+    } catch (err) {
+      // Silently handle refresh errors - permissions were still saved
+      console.log('Folder refresh after permission change failed, but permissions were saved');
+    }
   };
 
   return (
@@ -741,6 +764,26 @@ export default function Home() {
             )}
           </nav>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 bg-green-900/30 border border-green-700/50 text-green-200 px-6 py-4 rounded-xl flex items-start animate-fade-in">
+            <svg className="w-6 h-6 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="ml-4 text-green-300 hover:text-green-100 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between">

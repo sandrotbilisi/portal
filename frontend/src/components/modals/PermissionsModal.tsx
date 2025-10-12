@@ -21,6 +21,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [permission, setPermission] = useState<Permission | null>(null);
   
@@ -34,6 +35,10 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
   
   // Branch restrictions state (map of branchId to restrictions)
   const [branchRestrictions, setBranchRestrictions] = useState<{ [branchId: string]: any }>({});
+  
+  // UI state for branch management
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [expandedBranches, setExpandedBranches] = useState(true);
 
   axios.defaults.withCredentials = true;
 
@@ -116,6 +121,7 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     try {
       setLoading(true);
       setError(null);
+      setSuccess(null);
 
       // Build role restrictions
       const roleRestrictions: any = {
@@ -145,6 +151,10 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
       });
 
       if (response.data.success) {
+        setSuccess('Permissions saved successfully!');
+        setLoading(false);
+        // Small delay to show success message, then close
+        await new Promise(resolve => setTimeout(resolve, 800));
         onClose();
       } else {
         setError(response.data.message || 'Failed to save permissions');
@@ -175,6 +185,55 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Quick preset functions
+  const applyPresetToRole = (preset: 'full' | 'readonly' | 'none') => {
+    switch (preset) {
+      case 'full':
+        setUserRoleRestrictions({ view: true, upload: true, delete: true, rename: true });
+        break;
+      case 'readonly':
+        setUserRoleRestrictions({ view: true, upload: false, delete: false, rename: false });
+        break;
+      case 'none':
+        setUserRoleRestrictions({ view: false, upload: false, delete: false, rename: false });
+        break;
+    }
+  };
+
+  const applyPresetToBranches = (preset: 'full' | 'readonly' | 'none', branchIds: string[]) => {
+    const newRestrictions = { ...branchRestrictions };
+    branchIds.forEach(branchId => {
+      switch (preset) {
+        case 'full':
+          newRestrictions[branchId] = { view: true, upload: true, delete: true, rename: true };
+          break;
+        case 'readonly':
+          newRestrictions[branchId] = { view: true, upload: false, delete: false, rename: false };
+          break;
+        case 'none':
+          newRestrictions[branchId] = { view: false, upload: false, delete: false, rename: false };
+          break;
+      }
+    });
+    setBranchRestrictions(newRestrictions);
+  };
+
+  const toggleAllBranches = () => {
+    if (selectedBranches.length === branches.length) {
+      setSelectedBranches([]);
+    } else {
+      setSelectedBranches(branches.map(b => b.id));
+    }
+  };
+
+  const toggleBranchSelection = (branchId: string) => {
+    setSelectedBranches(prev => 
+      prev.includes(branchId) 
+        ? prev.filter(id => id !== branchId)
+        : [...prev, branchId]
+    );
   };
 
   if (!isOpen) return null;
@@ -217,22 +276,60 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
           </div>
         )}
 
-        {loading && !error ? (
+        {success && (
+          <div className="mb-6 bg-green-900/30 border border-green-700/50 text-green-200 px-4 py-3 rounded-xl flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {success}
+          </div>
+        )}
+
+        {loading && !error && !success ? (
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-gray-600 border-t-gray-400 rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-300">Loading...</p>
+            <p className="mt-4 text-gray-300">Loading permissions...</p>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Role-based Permissions */}
             <div className="bg-gray-700/30 border border-gray-600/30 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                User Role Permissions
-              </h3>
-              <p className="text-gray-400 text-sm mb-4">Control what users (non-admins) can do in this folder</p>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    User Role Permissions
+                  </h3>
+                  <p className="text-gray-400 text-sm mt-1">Control what users (non-admins) can do</p>
+                </div>
+                
+                {/* Quick Presets */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => applyPresetToRole('full')}
+                    className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded-lg transition-colors"
+                    title="Full Access"
+                  >
+                    Full Access
+                  </button>
+                  <button
+                    onClick={() => applyPresetToRole('readonly')}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors"
+                    title="Read Only"
+                  >
+                    Read Only
+                  </button>
+                  <button
+                    onClick={() => applyPresetToRole('none')}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded-lg transition-colors"
+                    title="No Access"
+                  >
+                    No Access
+                  </button>
+                </div>
+              </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {['view', 'upload', 'delete', 'rename'].map((action) => (
@@ -254,45 +351,120 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
 
             {/* Branch-based Permissions */}
             <div className="bg-gray-700/30 border border-gray-600/30 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                Branch Permissions
-              </h3>
-              <p className="text-gray-400 text-sm mb-4">Control what each branch can do in this folder</p>
-              
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setExpandedBranches(!expandedBranches)}
+                    className="text-white hover:text-gray-300 transition-colors"
+                  >
+                    <svg className={`w-5 h-5 transition-transform ${expandedBranches ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      Branch Permissions
+                      {selectedBranches.length > 0 && (
+                        <span className="ml-2 px-2 py-0.5 bg-blue-600 text-xs rounded-full">
+                          {selectedBranches.length} selected
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-gray-400 text-sm mt-1">Control what each branch can do</p>
+                  </div>
+                </div>
+              </div>
+
               {branches.length === 0 ? (
                 <p className="text-gray-500 italic">No branches available</p>
               ) : (
-                <div className="space-y-4">
-                  {branches.map((branch) => (
-                    <div key={branch.id} className="bg-gray-800/50 border border-gray-600/20 rounded-lg p-4">
-                      <h4 className="text-white font-medium mb-3">
-                        {branch.name} <span className="text-gray-400 text-sm">({branch.location})</span>
-                      </h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {['view', 'upload', 'delete', 'rename'].map((action) => (
-                          <label key={action} className="flex items-center space-x-2 cursor-pointer">
+                <>
+                  {/* Bulk Actions Bar */}
+                  <div className="mb-4 p-4 bg-gray-800/50 border border-gray-600/20 rounded-lg">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedBranches.length === branches.length && branches.length > 0}
+                          onChange={toggleAllBranches}
+                          className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 bg-gray-700"
+                        />
+                        <span className="text-white text-sm font-medium">Select All ({branches.length})</span>
+                      </label>
+                      
+                      <div className="flex-1"></div>
+                      
+                      {selectedBranches.length > 0 && (
+                        <>
+                          <span className="text-gray-400 text-sm">Apply to selected:</span>
+                          <button
+                            onClick={() => applyPresetToBranches('full', selectedBranches)}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded-lg transition-colors"
+                          >
+                            Full Access
+                          </button>
+                          <button
+                            onClick={() => applyPresetToBranches('readonly', selectedBranches)}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors"
+                          >
+                            Read Only
+                          </button>
+                          <button
+                            onClick={() => applyPresetToBranches('none', selectedBranches)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded-lg transition-colors"
+                          >
+                            No Access
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Branch List */}
+                  {expandedBranches && (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {branches.map((branch) => (
+                        <div key={branch.id} className="bg-gray-800/50 border border-gray-600/20 rounded-lg p-4 hover:border-gray-500/30 transition-colors">
+                          <div className="flex items-start gap-3">
                             <input
                               type="checkbox"
-                              checked={branchRestrictions[branch.id]?.[action] !== false}
-                              onChange={(e) => setBranchRestrictions(prev => ({
-                                ...prev,
-                                [branch.id]: {
-                                  ...prev[branch.id],
-                                  [action]: e.target.checked
-                                }
-                              }))}
-                              className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 bg-gray-700"
+                              checked={selectedBranches.includes(branch.id)}
+                              onChange={() => toggleBranchSelection(branch.id)}
+                              className="mt-1 w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 bg-gray-700"
                             />
-                            <span className="text-gray-300 capitalize text-sm">{action}</span>
-                          </label>
-                        ))}
-                      </div>
+                            <div className="flex-1">
+                              <h4 className="text-white font-medium mb-2">
+                                {branch.name} <span className="text-gray-400 text-sm font-normal">({branch.location})</span>
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {['view', 'upload', 'delete', 'rename'].map((action) => (
+                                  <label key={action} className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={branchRestrictions[branch.id]?.[action] !== false}
+                                      onChange={(e) => setBranchRestrictions(prev => ({
+                                        ...prev,
+                                        [branch.id]: {
+                                          ...prev[branch.id],
+                                          [action]: e.target.checked
+                                        }
+                                      }))}
+                                      className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-2 focus:ring-blue-500 bg-gray-700"
+                                    />
+                                    <span className="text-gray-300 capitalize text-sm">{action}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -317,13 +489,20 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
               </button>
               <button
                 onClick={handleSave}
-                disabled={loading}
+                disabled={loading || !!success}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     <span>Saving...</span>
+                  </>
+                ) : success ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Saved!</span>
                   </>
                 ) : (
                   <>
