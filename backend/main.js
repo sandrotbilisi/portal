@@ -14,6 +14,7 @@ const UPLOADS_DIR = 'uploads';
 const ORDER_FILE_NAME = '.file-order.json';
 const USERS_DB_FILE = 'users.json';
 const BRANCHES_DB_FILE = 'branches.json';
+const PERMISSIONS_DB_FILE = 'permissions.json';
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = '7d';
 
@@ -22,6 +23,9 @@ let users = [];
 
 // File-based branches database
 let branches = [];
+
+// File-based permissions database
+let permissions = [];
 
 // Load users from file
 function loadUsers() {
@@ -102,9 +106,110 @@ function saveBranches() {
     }
 }
 
-// Load users and branches on startup
+// Load permissions from file
+function loadPermissions() {
+    try {
+        if (fs.existsSync(PERMISSIONS_DB_FILE)) {
+            const data = fs.readFileSync(PERMISSIONS_DB_FILE, 'utf8');
+            permissions = JSON.parse(data);
+            logger.info(`Loaded ${permissions.length} permissions from database`);
+        } else {
+            // Create empty permissions file if none exists
+            permissions = [];
+            savePermissions();
+            logger.info('Created empty permissions database');
+        }
+    } catch (error) {
+        logger.error('Error loading permissions:', error);
+        permissions = [];
+    }
+}
+
+// Save permissions to file
+function savePermissions() {
+    try {
+        fs.writeFileSync(PERMISSIONS_DB_FILE, JSON.stringify(permissions, null, 2));
+        logger.info('Permissions saved to database');
+    } catch (error) {
+        logger.error('Error saving permissions:', error);
+    }
+}
+
+// Check if user has permission to access a folder
+function checkFolderPermission(folderPath, userId, action) {
+    try {
+        const user = users.find(u => u.id === userId);
+        if (!user) return false;
+        
+        // Admin always has full access
+        if (user.role === 'admin') return true;
+        
+        // Find permissions for this folder path
+        const permission = permissions.find(p => p.folderPath === folderPath);
+        
+        // If no permissions set, allow access (default behavior)
+        if (!permission) return true;
+        
+        // Check role-based restrictions
+        if (permission.roleRestrictions && permission.roleRestrictions[user.role]) {
+            const rolePermissions = permission.roleRestrictions[user.role];
+            if (rolePermissions[action] === false) return false;
+        }
+        
+        // Check branch-based restrictions
+        if (permission.branchRestrictions && permission.branchRestrictions[user.branchId]) {
+            const branchPermissions = permission.branchRestrictions[user.branchId];
+            if (branchPermissions[action] === false) return false;
+        }
+        
+        return true;
+    } catch (error) {
+        logger.error('Error checking folder permission:', error);
+        return false;
+    }
+}
+
+// Get all parent paths for a given path (for nested permission checking)
+function getParentPaths(folderPath) {
+    if (!folderPath) return [];
+    const parts = folderPath.split('/').filter(Boolean);
+    const paths = [];
+    for (let i = 0; i < parts.length; i++) {
+        paths.push(parts.slice(0, i + 1).join('/'));
+    }
+    return paths;
+}
+
+// Check if user can view a folder (including parent folder checks)
+function canViewFolder(folderPath, userId) {
+    // Check if user can view this folder or any parent folder
+    const paths = [folderPath, ...getParentPaths(folderPath)];
+    for (const path of paths) {
+        if (!checkFolderPermission(path, userId, 'view')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Filter folders based on user permissions
+function filterFoldersbyPermissions(folders, currentPath, userId) {
+    const user = users.find(u => u.id === userId);
+    if (!user) return [];
+    
+    // Admin sees everything
+    if (user.role === 'admin') return folders;
+    
+    return folders.filter(folder => {
+        const folderPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
+        return canViewFolder(folderPath, userId);
+    });
+}
+
+// Load users, branches, and permissions on startup
 loadUsers();
 loadBranches();
+loadPermissions();
 
 function generateToken(user) {
     return jwt.sign({ sub: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -595,9 +700,28 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
             .map(file => getFileInfo(UPLOADS_DIR, file))
             .filter(info => info !== null);
         
+        // Apply permission filtering for non-admin users
+        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, '', req.user.sub);
+        
         // Apply custom ordering
         const customOrder = getCustomOrder(UPLOADS_DIR);
         filesWithInfo = applySortOrder(filesWithInfo, customOrder);
+        
+        // Add permission info for each folder (for frontend to know what actions are allowed)
+        if (req.user.role !== 'admin') {
+            filesWithInfo = filesWithInfo.map(file => {
+                const folderPath = file.name;
+                return {
+                    ...file,
+                    permissions: {
+                        canView: checkFolderPermission(folderPath, req.user.sub, 'view'),
+                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload'),
+                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete'),
+                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename')
+                    }
+                };
+            });
+        }
         
         res.json({
             success: true,
@@ -620,6 +744,14 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
         const fullUrlPath = req.params[0];
         const fullPath = path.join(UPLOADS_DIR, fullUrlPath);
         
+        // Check if user has permission to view this folder
+        if (!canViewFolder(fullUrlPath, req.user.sub)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to access this folder'
+            });
+        }
+        
         if (!fs.existsSync(fullPath)) {
             return res.status(404).json({
                 success: false,
@@ -641,9 +773,28 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
             .map(file => getFileInfo(fullPath, file))
             .filter(info => info !== null);
         
+        // Apply permission filtering for non-admin users
+        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, fullUrlPath, req.user.sub);
+        
         // Apply custom ordering
         const customOrder = getCustomOrder(fullPath);
         filesWithInfo = applySortOrder(filesWithInfo, customOrder);
+        
+        // Add permission info for each folder (for frontend to know what actions are allowed)
+        if (req.user.role !== 'admin') {
+            filesWithInfo = filesWithInfo.map(file => {
+                const folderPath = fullUrlPath ? `${fullUrlPath}/${file.name}` : file.name;
+                return {
+                    ...file,
+                    permissions: {
+                        canView: checkFolderPermission(folderPath, req.user.sub, 'view'),
+                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload'),
+                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete'),
+                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename')
+                    }
+                };
+            });
+        }
         
         res.json({
             success: true,
@@ -697,8 +848,131 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
     }
 });
 
+// Permissions Management Endpoints
+
+// Get all permissions
+app.get('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        res.json({
+            success: true,
+            data: permissions
+        });
+    } catch (error) {
+        logger.error('Error getting permissions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get permissions',
+            error: error.message
+        });
+    }
+});
+
+// Get permission for a specific folder
+app.get('/permissions/:folderPath(*)', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const folderPath = req.params.folderPath;
+        const permission = permissions.find(p => p.folderPath === folderPath);
+        
+        res.json({
+            success: true,
+            data: permission || null
+        });
+    } catch (error) {
+        logger.error('Error getting permission:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get permission',
+            error: error.message
+        });
+    }
+});
+
+// Create or update permission for a folder
+app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const { folderPath, roleRestrictions, branchRestrictions } = req.body;
+        
+        if (!folderPath) {
+            return res.status(400).json({
+                success: false,
+                message: 'Folder path is required'
+            });
+        }
+        
+        // Check if permission already exists
+        const existingIndex = permissions.findIndex(p => p.folderPath === folderPath);
+        
+        const permission = {
+            id: existingIndex !== -1 ? permissions[existingIndex].id : String(Date.now()),
+            folderPath,
+            roleRestrictions: roleRestrictions || {},
+            branchRestrictions: branchRestrictions || {},
+            createdAt: existingIndex !== -1 ? permissions[existingIndex].createdAt : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (existingIndex !== -1) {
+            // Update existing permission
+            permissions[existingIndex] = permission;
+            logger.info(`Permission updated for folder: ${folderPath}`);
+        } else {
+            // Create new permission
+            permissions.push(permission);
+            logger.info(`Permission created for folder: ${folderPath}`);
+        }
+        
+        savePermissions();
+        
+        res.json({
+            success: true,
+            data: permission,
+            message: existingIndex !== -1 ? 'Permission updated successfully' : 'Permission created successfully'
+        });
+    } catch (error) {
+        logger.error('Error creating/updating permission:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create/update permission',
+            error: error.message
+        });
+    }
+});
+
+// Delete permission for a folder
+app.delete('/permissions/:folderPath(*)', requireAuth, requireRole(['admin']), (req, res) => {
+    try {
+        const folderPath = req.params.folderPath;
+        
+        const index = permissions.findIndex(p => p.folderPath === folderPath);
+        
+        if (index === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Permission not found'
+            });
+        }
+        
+        permissions.splice(index, 1);
+        savePermissions();
+        
+        logger.info(`Permission deleted for folder: ${folderPath}`);
+        
+        res.json({
+            success: true,
+            message: 'Permission deleted successfully'
+        });
+    } catch (error) {
+        logger.error('Error deleting permission:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete permission',
+            error: error.message
+        });
+    }
+});
+
 // Upload a file
-app.post('/files', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
     const upload = multer();
     
     upload.fields([
@@ -716,6 +990,14 @@ app.post('/files', requireAuth, requireRole(['admin']), (req, res) => {
         
         try {
             const { folderPath: folderPathParam } = req.body;
+            
+            // Check upload permission for non-admin users
+            if (req.user.role !== 'admin' && !checkFolderPermission(folderPathParam || '', req.user.sub, 'upload')) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You do not have permission to upload files to this folder'
+                });
+            }
             
             if (!req.files || !req.files.file || !req.files.file[0]) {
                 return res.status(400).json({
@@ -771,10 +1053,22 @@ app.use((error, req, res, next) => {
 });
 
 // Delete a file or folder
-app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
+app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
     try {
         const filePath = req.params[0];
         const fullPath = path.join(UPLOADS_DIR, filePath);
+        
+        // Get the folder path (parent directory)
+        const folderPath = path.dirname(filePath).replace(/\\/g, '/');
+        const normalizedFolderPath = folderPath === '.' ? '' : folderPath;
+        
+        // Check delete permission for non-admin users
+        if (req.user.role !== 'admin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'delete')) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to delete files in this folder'
+            });
+        }
         
         if (!fs.existsSync(fullPath)) {
             return res.status(404).json({
@@ -810,12 +1104,24 @@ app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) =>
 });
 
 // Rename a file or folder
-app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
+app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
     try {
         const filePath = req.params[0];
         const { newName, updateYouTubeTitle, newTitle } = req.body;
         
         const fullPath = path.join(UPLOADS_DIR, filePath);
+        
+        // Get the folder path (parent directory)
+        const folderPath = path.dirname(filePath).replace(/\\/g, '/');
+        const normalizedFolderPath = folderPath === '.' ? '' : folderPath;
+        
+        // Check rename permission for non-admin users
+        if (req.user.role !== 'admin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'rename')) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to rename files in this folder'
+            });
+        }
         
         if (!fs.existsSync(fullPath)) {
             return res.status(404).json({
