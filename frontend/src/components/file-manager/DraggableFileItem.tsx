@@ -4,7 +4,8 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Folder } from '../../types';
-import { formatFileSize, getFileIcon, isImageFile, isVideoFile, isDocumentFile } from '../../utils';
+import { formatFileSize, isImageFile, isVideoFile, isDocumentFile } from '../../utils';
+import { FileIcon } from './FileIcon';
 
 interface DraggableFileItemProps {
   folder: Folder;
@@ -160,7 +161,7 @@ export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
                 </div>
               </div>
             ) : (
-              getFileIcon(folder.type, folder.name)
+              <FileIcon type={folder.type} name={folder.name} />
             )}
           </div>
         </div>
@@ -181,7 +182,14 @@ export const DraggableFileItem: React.FC<DraggableFileItemProps> = ({
         }`}
       >
         <p className="font-medium">{formatFileSize(folder.size)}</p>
-        <p className="text-xs">{new Date(folder.modified).toLocaleDateString()}</p>
+        <p className="text-xs">
+          {new Date(folder.uploadedAt || folder.created).toLocaleString()}
+        </p>
+        {folder.uploadedBy && (
+          <p className="text-xs mt-1 text-gray-500 group-hover:text-gray-400">
+            By: {folder.uploadedBy}
+          </p>
+        )}
       </div>
 
       {/* Action menu (appear on hover) */}

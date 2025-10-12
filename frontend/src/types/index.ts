@@ -16,6 +16,8 @@ export interface Folder {
   url?: string;
   id?: string;
   permissions?: FolderPermissions;
+  uploadedBy?: string | null;
+  uploadedAt?: string | null;
 }
 
 export interface RoleRestrictions {

@@ -47,7 +47,7 @@ export const getDocumentType = (fileName: string): string => {
   }
 };
 
-// File icon mapping
+// File icon mapping (emoji fallback for user side)
 export const getFileIcon = (type: string, name: string) => {
   if (type === 'folder') return '📁';
   

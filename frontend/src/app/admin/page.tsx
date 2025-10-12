@@ -23,6 +23,8 @@ interface Folder {
   thumbnail?: string;
   id?: string;
   url?: string;
+  uploadedBy?: string | null;
+  uploadedAt?: string | null;
 }
 
 export default function Home() {

@@ -34,6 +34,8 @@ interface Folder {
   id?: string;
   url?: string;
   permissions?: FolderPermissions;
+  uploadedBy?: string | null;
+  uploadedAt?: string | null;
 }
 
 export default function UserDashboard() {
@@ -544,6 +546,14 @@ export default function UserDashboard() {
                         <p className="text-gray-400 text-xs">
                           {folder.type === 'folder' ? 'Folder' : folder.type === 'youtube' ? 'YouTube Video' : formatFileSize(folder.size)}
                         </p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {new Date(folder.uploadedAt || folder.created).toLocaleString()}
+                        </p>
+                        {folder.uploadedBy && (
+                          <p className="text-gray-500 text-xs mt-0.5">
+                            By: {folder.uploadedBy}
+                          </p>
+                        )}
                       </div>
 
                       {/* Action Button */}
