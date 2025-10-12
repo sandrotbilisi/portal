@@ -261,11 +261,13 @@ app.use((req, res, next) => {
 
 // Allowed IPs
 const allowedIPs = [
-    '212.58.119.9',
-    '212.58.119.0',
-    '188.169.142.160',
-    '212.58.114.123',
-    '212.58.114.23',
+    '212.58.119.9', // Nijaradzes 1
+    '212.58.119.0', // kazchensky 5
+    '188.169.142.160', // khimshiashvili 9
+    '212.58.114.123', // kazchensky 19
+    '212.58.114.23', // Kobaladze 8a
+    '100.101.119.125', // Alex
+    '5.512.50.154'// Vepkhvia
 ];
 
 app.set('trust proxy', true); // if behind a proxy
@@ -277,8 +279,19 @@ app.use((req, res, next) => {
 
     if (!allowedIPs.includes(clientIP)) {
         console.log('Forbidden: IP not allowed', clientIP);
+    
+        // send Discord webhook here
+        const webhookUrl = 'https://discord.com/api/webhooks/1426985073839968377/IlC-2HpnBzfNIzk9_AA6TFV-h2Xh2T4ZPeWBZLsKhV_cuFW4mm3W4jT3WSh8bR3slf8W';
+        
+        fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: `Forbidden access attempt from IP: ${clientIP}` })
+        }).catch(err => console.error('Webhook error:', err));
+    
         return res.status(403).json({ success: false, message: 'Forbidden: IP not allowed' });
     }
+    
     next();
 });
 
