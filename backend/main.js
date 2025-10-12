@@ -273,6 +273,7 @@ const allowedIPs = [
 app.use((req, res, next) => {
     const clientIP = req.ip || req.connection.remoteAddress;
     if (!allowedIPs.includes(clientIP)) {
+        console.log('Forbidden: IP not allowed', clientIP);
         return res.status(403).json({ success: false, message: 'Forbidden: IP not allowed' });
     }
     next();
