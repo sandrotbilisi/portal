@@ -239,6 +239,7 @@ app.use((req, res, next) => {
         'http://127.0.0.1:3001',
         'https://home-server.tail7b1d07.ts.net', // Your backend domain
         'https://localhost:3000',
+        "https://portal.exmony.ge"
     ];
     
     if (allowedOrigins.includes(origin)) {
