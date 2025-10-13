@@ -53,6 +53,35 @@ export interface Branch {
   location: string;
 }
 
+export interface User {
+  id: string;
+  username: string;
+  role: "admin" | "user";
+  name: string;
+  lastname: string;
+  personalNumber: string;
+  branchIds: string[];
+  branches: Branch[];
+  branchNames: string;
+  // Backward compatibility
+  branchId?: string;
+  branchName?: string;
+}
+
+export interface MeResponse {
+  username: string;
+  role: "admin" | "user";
+  name: string;
+  lastname: string;
+  personalNumber: string;
+  branchIds: string[];
+  branches: Branch[];
+  // Backward compatibility
+  branchId?: string;
+  branchName?: string;
+  branchLocation?: string;
+}
+
 export interface UploadProgress {
   progress: number;
   isUploading: boolean;

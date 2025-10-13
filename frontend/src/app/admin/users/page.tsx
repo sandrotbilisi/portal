@@ -2,29 +2,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { User, Branch } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-interface UserRow { 
-  id: string; 
-  username: string; 
-  role: "admin" | "user";
-  name: string;
-  lastname: string;
-  personalNumber: string;
-  branchId: string;
-  branchName: string;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  location: string;
-}
-
 export default function UsersPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,17 +18,17 @@ export default function UsersPage() {
   const [name, setName] = useState("");
   const [lastname, setLastname] = useState("");
   const [personalNumber, setPersonalNumber] = useState("");
-  const [branchId, setBranchId] = useState("");
+  const [branchIds, setBranchIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   
   // Edit states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editUsername, setEditUsername] = useState("");
   const [editName, setEditName] = useState("");
   const [editLastname, setEditLastname] = useState("");
   const [editPersonalNumber, setEditPersonalNumber] = useState("");
-  const [editBranchId, setEditBranchId] = useState("");
+  const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
   const [editRole, setEditRole] = useState<"user" | "admin">("user");
   const [updating, setUpdating] = useState(false);
 
@@ -70,10 +54,6 @@ export default function UsersPage() {
       const res = await axios.get(`${API_BASE_URL}/branches`);
       const branchesData = res.data.data || [];
       setBranches(branchesData);
-      // Set first branch as default if available
-      if (branchesData.length > 0 && !branchId) {
-        setBranchId(branchesData[0].id);
-      }
     } catch (err: any) {
       console.error('Failed to load branches:', err);
     }
@@ -87,6 +67,12 @@ export default function UsersPage() {
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    if (branchIds.length === 0) {
+      setError('Please select at least one branch');
+      return;
+    }
+    
     setCreating(true);
     try {
       await axios.post(`${API_BASE_URL}/users`, { 
@@ -96,7 +82,7 @@ export default function UsersPage() {
         name,
         lastname,
         personalNumber,
-        branchId
+        branchIds
       });
       setUsername("");
       setPassword("");
@@ -104,10 +90,7 @@ export default function UsersPage() {
       setName("");
       setLastname("");
       setPersonalNumber("");
-      // Reset to first branch
-      if (branches.length > 0) {
-        setBranchId(branches[0].id);
-      }
+      setBranchIds([]);
       await fetchUsers();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create user');
@@ -116,13 +99,13 @@ export default function UsersPage() {
     }
   };
 
-  const openEditModal = (user: UserRow) => {
+  const openEditModal = (user: User) => {
     setEditingUser(user);
     setEditUsername(user.username);
     setEditName(user.name);
     setEditLastname(user.lastname);
     setEditPersonalNumber(user.personalNumber);
-    setEditBranchId(user.branchId);
+    setEditBranchIds(user.branchIds || []);
     setEditRole(user.role);
     setIsEditModalOpen(true);
     setError(null);
@@ -135,7 +118,7 @@ export default function UsersPage() {
     setEditName("");
     setEditLastname("");
     setEditPersonalNumber("");
-    setEditBranchId("");
+    setEditBranchIds([]);
     setEditRole("user");
     setError(null);
   };
@@ -143,6 +126,11 @@ export default function UsersPage() {
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    
+    if (editBranchIds.length === 0) {
+      setError('Please select at least one branch');
+      return;
+    }
     
     setError(null);
     setUpdating(true);
@@ -153,7 +141,7 @@ export default function UsersPage() {
         name: editName,
         lastname: editLastname,
         personalNumber: editPersonalNumber,
-        branchId: editBranchId
+        branchIds: editBranchIds
       });
       closeEditModal();
       await fetchUsers();
@@ -293,23 +281,33 @@ export default function UsersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-2">Branch *</label>
-                <select 
-                  value={branchId} 
-                  onChange={(e) => setBranchId(e.target.value)} 
-                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
-                  required
-                >
+                <label className="block text-sm text-gray-300 mb-2">Branches * (select multiple)</label>
+                <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
                   {branches.length === 0 ? (
-                    <option value="">No branches available</option>
+                    <p className="text-gray-400 text-sm">No branches available</p>
                   ) : (
                     branches.map(branch => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name} - {branch.location}
-                      </option>
+                      <label key={branch.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={branchIds.includes(branch.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setBranchIds([...branchIds, branch.id]);
+                            } else {
+                              setBranchIds(branchIds.filter(id => id !== branch.id));
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-white text-sm">{branch.name} - {branch.location}</span>
+                      </label>
                     ))
                   )}
-                </select>
+                </div>
+                {branchIds.length > 0 && (
+                  <p className="text-sm text-gray-400 mt-2">{branchIds.length} branch(es) selected</p>
+                )}
               </div>
             </div>
 
@@ -339,7 +337,7 @@ export default function UsersPage() {
                     <th className="py-3 pr-4">Last Name</th>
                     <th className="py-3 pr-4">Username</th>
                     <th className="py-3 pr-4">Personal Number</th>
-                    <th className="py-3 pr-4">Branch</th>
+                    <th className="py-3 pr-4">Branches</th>
                     <th className="py-3 pr-4">Role</th>
                     <th className="py-3 pr-4">Actions</th>
                   </tr>
@@ -353,7 +351,17 @@ export default function UsersPage() {
                       <td className="py-3 pr-4">{u.username}</td>
                       <td className="py-3 pr-4">{u.personalNumber || '-'}</td>
                       <td className="py-3 pr-4">
-                        <span className="text-gray-300">{u.branchName || 'N/A'}</span>
+                        <div className="flex flex-wrap gap-1">
+                          {u.branches && u.branches.length > 0 ? (
+                            u.branches.map(branch => (
+                              <span key={branch.id} className="px-2 py-1 bg-gray-600/40 text-gray-200 rounded text-xs">
+                                {branch.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 pr-4">
                         <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
@@ -445,33 +453,46 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-2">Branch *</label>
-                  <select 
-                    value={editBranchId} 
-                    onChange={(e) => setEditBranchId(e.target.value)} 
-                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
-                    required
-                  >
-                    {branches.map(branch => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name} - {branch.location}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">Role *</label>
+                <select 
+                  value={editRole} 
+                  onChange={(e) => setEditRole(e.target.value as any)} 
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">Branches * (select multiple)</label>
+                <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
+                  {branches.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No branches available</p>
+                  ) : (
+                    branches.map(branch => (
+                      <label key={branch.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editBranchIds.includes(branch.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditBranchIds([...editBranchIds, branch.id]);
+                            } else {
+                              setEditBranchIds(editBranchIds.filter(id => id !== branch.id));
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-white text-sm">{branch.name} - {branch.location}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-2">Role *</label>
-                  <select 
-                    value={editRole} 
-                    onChange={(e) => setEditRole(e.target.value as any)} 
-                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+                {editBranchIds.length > 0 && (
+                  <p className="text-sm text-gray-400 mt-2">{editBranchIds.length} branch(es) selected</p>
+                )}
               </div>
 
               <div className="flex space-x-3 pt-4">

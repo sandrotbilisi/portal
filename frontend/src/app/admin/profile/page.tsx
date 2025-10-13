@@ -3,18 +3,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { MeResponse } from "@/types";
 
-interface MeResponse {
-  username: string;
-  role: "admin" | "user";
-  name: string;
-  lastname: string;
-  personalNumber: string;
-  branchId: string;
-  branchName: string;
-  branchLocation: string;
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function AdminProfilePage() {
   const router = useRouter();
@@ -156,8 +147,18 @@ export default function AdminProfilePage() {
                   <span className="text-white font-medium">{me?.username}</span>
                 </div>
                 <div className="flex justify-between py-3 border-b border-gray-700/30">
-                  <span className="text-gray-400">Branch</span>
-                  <span className="text-white font-medium">{me?.branchName} - {me?.branchLocation}</span>
+                  <span className="text-gray-400">Branches</span>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    {me?.branches && me.branches.length > 0 ? (
+                      me.branches.map(branch => (
+                        <span key={branch.id} className="px-3 py-1 bg-gray-600/40 text-gray-200 rounded-lg text-sm">
+                          {branch.name} - {branch.location}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-white font-medium">N/A</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between py-3 border-b border-gray-700/30">
                   <span className="text-gray-400">Role</span>
