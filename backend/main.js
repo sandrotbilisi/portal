@@ -852,20 +852,28 @@ function applySortOrder(files, customOrder) {
     });
 }
 
-function generateUniqueFilename(originalName) {
+function generateUniqueFilename(originalName, destinationPath) {
     try {
         // Decode filename properly - multer receives as Latin-1 but browsers send UTF-8
         const buffer = Buffer.from(originalName, 'latin1');
         const decodedName = buffer.toString('utf8');
         
-        const timestamp = Date.now();
         const ext = path.extname(decodedName);
         const name = path.basename(decodedName, ext);
         
         // Keep Unicode characters (Georgian, Russian, etc.), only remove dangerous filesystem chars
         const safeName = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
         
-        return `${safeName}${ext}`;
+        // Check if file exists, add (1), (2), etc. like Windows
+        let finalName = `${safeName}${ext}`;
+        let counter = 1;
+        
+        while (fs.existsSync(path.join(destinationPath, finalName))) {
+            finalName = `${safeName} (${counter})${ext}`;
+            counter++;
+        }
+        
+        return finalName;
     } catch (error) {
         logger.error('Error generating filename:', error);
         return `file-${Date.now()}${path.extname(originalName)}`;
@@ -1260,8 +1268,8 @@ app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
             // Ensure destination directory exists
             ensureDirectoryExists(destinationPath);
             
-            // Generate unique filename
-            const filename = generateUniqueFilename(file.originalname);
+            // Generate unique filename (will add (1), (2), etc. if file exists)
+            const filename = generateUniqueFilename(file.originalname, destinationPath);
             const filePath = path.join(destinationPath, filename);
             
             // Save file
@@ -1561,8 +1569,17 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
         // Save as JSON file
         // Keep Unicode characters, only remove dangerous filesystem characters
         const safeTitle = title.trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
-        const filename = `${safeTitle}-${Date.now()}.json`;
-        const filePath = path.join(destinationPath, filename);
+        
+        // Check if file exists, add (1), (2), etc. like Windows
+        let filename = `${safeTitle}.json`;
+        let counter = 1;
+        let filePath = path.join(destinationPath, filename);
+        
+        while (fs.existsSync(filePath)) {
+            filename = `${safeTitle} (${counter}).json`;
+            filePath = path.join(destinationPath, filename);
+            counter++;
+        }
         
         fs.writeFileSync(filePath, JSON.stringify(videoData, null, 2));
         
