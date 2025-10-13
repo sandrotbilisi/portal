@@ -46,7 +46,7 @@ function loadUsers() {
                     name: 'System',
                     lastname: 'Administrator',
                     personalNumber: '000000-0000',
-                    branchId: '1'
+                    branchIds: ['1']
                 }
             ];
             saveUsers();
@@ -157,10 +157,28 @@ function checkFolderPermission(folderPath, userId, action) {
             if (rolePermissions[action] === false) return false;
         }
         
-        // Check branch-based restrictions
-        if (permission.branchRestrictions && permission.branchRestrictions[user.branchId]) {
-            const branchPermissions = permission.branchRestrictions[user.branchId];
-            if (branchPermissions[action] === false) return false;
+        // Check branch-based restrictions for all user's branches
+        // User has access if ANY of their branches has permission
+        const userBranchIds = Array.isArray(user.branchIds) ? user.branchIds : (user.branchId ? [user.branchId] : []);
+        if (permission.branchRestrictions && userBranchIds.length > 0) {
+            let hasAccessFromAnyBranch = false;
+            let hasRestrictionForAnyBranch = false;
+            
+            for (const branchId of userBranchIds) {
+                if (permission.branchRestrictions[branchId]) {
+                    hasRestrictionForAnyBranch = true;
+                    const branchPermissions = permission.branchRestrictions[branchId];
+                    if (branchPermissions[action] !== false) {
+                        hasAccessFromAnyBranch = true;
+                        break;
+                    }
+                }
+            }
+            
+            // If there are branch restrictions and user doesn't have access from any branch
+            if (hasRestrictionForAnyBranch && !hasAccessFromAnyBranch) {
+                return false;
+            }
         }
         
         return true;
@@ -362,8 +380,15 @@ app.get('/auth/me', (req, res) => {
         const user = users.find(u => u.id === payload.sub);
         if (!user) return res.json({ success: true, data: null });
         
-        // Get branch information
-        const branch = branches.find(b => b.id === user.branchId);
+        // Get branch information for all user's branches
+        const userBranchIds = Array.isArray(user.branchIds) ? user.branchIds : (user.branchId ? [user.branchId] : []);
+        const userBranches = userBranchIds.map(branchId => {
+            const branch = branches.find(b => b.id === branchId);
+            return branch ? { id: branch.id, name: branch.name, location: branch.location } : null;
+        }).filter(Boolean);
+        
+        // For backward compatibility, also include single branch info
+        const primaryBranch = userBranches[0];
         
         return res.json({ 
             success: true, 
@@ -373,9 +398,12 @@ app.get('/auth/me', (req, res) => {
                 name: user.name || '',
                 lastname: user.lastname || '',
                 personalNumber: user.personalNumber || '',
-                branchId: user.branchId || '',
-                branchName: branch ? branch.name : 'N/A',
-                branchLocation: branch ? branch.location : 'N/A'
+                branchIds: userBranchIds,
+                branches: userBranches,
+                // Backward compatibility fields
+                branchId: primaryBranch ? primaryBranch.id : '',
+                branchName: primaryBranch ? primaryBranch.name : 'N/A',
+                branchLocation: primaryBranch ? primaryBranch.location : 'N/A'
             } 
         });
     } catch {
@@ -386,7 +414,7 @@ app.get('/auth/me', (req, res) => {
 // Admin create lower-role users
 app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
     try {
-        const { username, password, role, name, lastname, personalNumber, branchId } = req.body || {};
+        const { username, password, role, name, lastname, personalNumber, branchId, branchIds } = req.body || {};
         
         // Validate required fields
         if (!username || !password) {
@@ -395,8 +423,15 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
         if (!name || !lastname || !personalNumber) {
             return res.status(400).json({ success: false, message: 'Name, lastname, and personal number required' });
         }
-        if (!branchId) {
-            return res.status(400).json({ success: false, message: 'Branch is required' });
+        
+        // Handle both branchIds array and single branchId for backward compatibility
+        let userBranchIds = [];
+        if (Array.isArray(branchIds) && branchIds.length > 0) {
+            userBranchIds = branchIds;
+        } else if (branchId) {
+            userBranchIds = [branchId];
+        } else {
+            return res.status(400).json({ success: false, message: 'At least one branch is required' });
         }
         
         // Check if user exists
@@ -404,10 +439,14 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             return res.status(400).json({ success: false, message: 'User exists' });
         }
         
-        // Validate branch exists
-        const branch = branches.find(b => b.id === branchId);
-        if (!branch) {
-            return res.status(400).json({ success: false, message: 'Invalid branch' });
+        // Validate all branches exist
+        const userBranches = [];
+        for (const branchId of userBranchIds) {
+            const branch = branches.find(b => b.id === String(branchId));
+            if (!branch) {
+                return res.status(400).json({ success: false, message: `Invalid branch ID: ${branchId}` });
+            }
+            userBranches.push(branch);
         }
         
         // Generate new ID
@@ -421,13 +460,14 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             name: String(name).trim(),
             lastname: String(lastname).trim(),
             personalNumber: String(personalNumber).trim(),
-            branchId: String(branchId)
+            branchIds: userBranchIds.map(id => String(id))
         };
         
         users.push(newUser);
         saveUsers();
         
-        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname}) - Branch: ${branch.name}`);
+        const branchNames = userBranches.map(b => b.name).join(', ');
+        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname}) - Branches: ${branchNames}`);
         
         return res.json({ 
             success: true, 
@@ -438,8 +478,11 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
                 name: newUser.name,
                 lastname: newUser.lastname,
                 personalNumber: newUser.personalNumber,
-                branchId: newUser.branchId,
-                branchName: branch.name
+                branchIds: newUser.branchIds,
+                branches: userBranches,
+                // Backward compatibility
+                branchId: newUser.branchIds[0],
+                branchName: userBranches[0].name
             } 
         });
     } catch (error) {
@@ -450,7 +493,15 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
 
 app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
     const list = users.map(u => {
-        const branch = branches.find(b => b.id === u.branchId);
+        const userBranchIds = Array.isArray(u.branchIds) ? u.branchIds : (u.branchId ? [u.branchId] : []);
+        const userBranches = userBranchIds.map(branchId => {
+            const branch = branches.find(b => b.id === branchId);
+            return branch ? { id: branch.id, name: branch.name, location: branch.location } : null;
+        }).filter(Boolean);
+        
+        const primaryBranch = userBranches[0];
+        const branchNames = userBranches.map(b => b.name).join(', ') || 'N/A';
+        
         return {
             id: u.id, 
             username: u.username, 
@@ -458,8 +509,12 @@ app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
             name: u.name || '',
             lastname: u.lastname || '',
             personalNumber: u.personalNumber || '',
-            branchId: u.branchId || '',
-            branchName: branch ? branch.name : 'N/A'
+            branchIds: userBranchIds,
+            branches: userBranches,
+            branchNames: branchNames,
+            // Backward compatibility
+            branchId: primaryBranch ? primaryBranch.id : '',
+            branchName: primaryBranch ? primaryBranch.name : 'N/A'
         };
     });
     res.json({ success: true, data: list });
@@ -509,7 +564,10 @@ app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
         const { id } = req.params;
         
         // Check if any users are assigned to this branch
-        const usersInBranch = users.filter(u => u.branchId === id);
+        const usersInBranch = users.filter(u => {
+            const userBranchIds = Array.isArray(u.branchIds) ? u.branchIds : (u.branchId ? [u.branchId] : []);
+            return userBranchIds.includes(id);
+        });
         if (usersInBranch.length > 0) {
             return res.status(400).json({ 
                 success: false, 
@@ -538,7 +596,7 @@ app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
 app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
     try {
         const { id } = req.params;
-        const { username, role, name, lastname, personalNumber, branchId } = req.body || {};
+        const { username, role, name, lastname, personalNumber, branchId, branchIds } = req.body || {};
         
         const userIndex = users.findIndex(u => u.id === id);
         if (userIndex === -1) {
@@ -548,8 +606,18 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
         const user = users[userIndex];
         
         // Validate required fields
-        if (!username || !name || !lastname || !personalNumber || !branchId) {
-            return res.status(400).json({ success: false, message: 'All fields are required' });
+        if (!username || !name || !lastname || !personalNumber) {
+            return res.status(400).json({ success: false, message: 'Username, name, lastname, and personal number are required' });
+        }
+        
+        // Handle both branchIds array and single branchId for backward compatibility
+        let userBranchIds = [];
+        if (Array.isArray(branchIds) && branchIds.length > 0) {
+            userBranchIds = branchIds;
+        } else if (branchId) {
+            userBranchIds = [branchId];
+        } else {
+            return res.status(400).json({ success: false, message: 'At least one branch is required' });
         }
         
         // Check if username is taken by another user
@@ -558,10 +626,14 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
             return res.status(400).json({ success: false, message: 'Username already taken' });
         }
         
-        // Validate branch exists
-        const branch = branches.find(b => b.id === branchId);
-        if (!branch) {
-            return res.status(400).json({ success: false, message: 'Invalid branch' });
+        // Validate all branches exist
+        const userBranches = [];
+        for (const branchId of userBranchIds) {
+            const branch = branches.find(b => b.id === String(branchId));
+            if (!branch) {
+                return res.status(400).json({ success: false, message: `Invalid branch ID: ${branchId}` });
+            }
+            userBranches.push(branch);
         }
         
         // Update user data
@@ -572,12 +644,13 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
             name: String(name).trim(),
             lastname: String(lastname).trim(),
             personalNumber: String(personalNumber).trim(),
-            branchId: String(branchId)
+            branchIds: userBranchIds.map(id => String(id))
         };
         
         saveUsers();
         
-        logger.info(`User updated: ${users[userIndex].username} (${users[userIndex].name} ${users[userIndex].lastname})`);
+        const branchNames = userBranches.map(b => b.name).join(', ');
+        logger.info(`User updated: ${users[userIndex].username} (${users[userIndex].name} ${users[userIndex].lastname}) - Branches: ${branchNames}`);
         
         return res.json({ 
             success: true, 
@@ -588,8 +661,12 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
                 name: users[userIndex].name,
                 lastname: users[userIndex].lastname,
                 personalNumber: users[userIndex].personalNumber,
-                branchId: users[userIndex].branchId,
-                branchName: branch.name
+                branchIds: users[userIndex].branchIds,
+                branches: userBranches,
+                branchNames: branchNames,
+                // Backward compatibility
+                branchId: users[userIndex].branchIds[0],
+                branchName: userBranches[0].name
             }
         });
     } catch (error) {
