@@ -1647,21 +1647,21 @@ app.use((req, res) => {
 });
 
 // Start server
-// app.listen(PORT, '0.0.0.0', () => {
-//     logger.info(`Server is running on port ${PORT}`);
-//     ensureDirectoryExists(UPLOADS_DIR);
-// });
+app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server is running on port ${PORT}`);
+    ensureDirectoryExists(UPLOADS_DIR);
+});
 
 
 
-const https = require('https');
-https.createServer(
-    {
-        key: fs.readFileSync("10.0.0.1+3-key.pem"),
-        cert: fs.readFileSync("10.0.0.1+3.pem"),
+// const https = require('https');
+// https.createServer(
+//     {
+//         key: fs.readFileSync("10.0.0.1+3-key.pem"),
+//         cert: fs.readFileSync("10.0.0.1+3.pem"),
         
-    },
-    app
-  ).listen(PORT, () => {
-    console.log(`🚀 Server running at https://localhost:${PORT}`);
-  });
+//     },
+//     app
+//   ).listen(PORT, () => {
+//     console.log(`🚀 Server running at https://localhost:${PORT}`);
+//   });
