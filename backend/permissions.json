@@ -1,1 +1,1548 @@
-[]
+[
+  {
+    "id": "1760277483416",
+    "folderPath": "რეპორტები/ნიჟარაძეს 1",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T13:58:03.416Z",
+    "updatedAt": "2025-10-12T14:08:23.879Z"
+  },
+  {
+    "id": "1760277782124",
+    "folderPath": "რეპორტები",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:03:02.124Z",
+    "updatedAt": "2025-10-12T14:04:51.651Z"
+  },
+  {
+    "id": "1760277805039",
+    "folderPath": "რეპორტები/კაჩინსკი 5",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:03:25.039Z",
+    "updatedAt": "2025-10-12T14:08:29.998Z"
+  },
+  {
+    "id": "1760277922617",
+    "folderPath": "რეპორტები/კობალაძე",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:05:22.617Z",
+    "updatedAt": "2025-10-12T14:08:15.267Z"
+  },
+  {
+    "id": "1760277942401",
+    "folderPath": "რეპორტები/ხიმშიაშვილი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:05:42.401Z",
+    "updatedAt": "2025-10-12T14:08:19.252Z"
+  },
+  {
+    "id": "1760278016262",
+    "folderPath": "რეპორტები/კაჩინსკი 19",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:06:56.262Z",
+    "updatedAt": "2025-10-12T14:08:35.231Z"
+  },
+  {
+    "id": "1760278042014",
+    "folderPath": "რეპორტები/შარტავა",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": true,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:07:22.014Z",
+    "updatedAt": "2025-10-12T14:08:39.098Z"
+  },
+  {
+    "id": "1760278167039",
+    "folderPath": "",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:09:27.039Z",
+    "updatedAt": "2025-10-12T14:09:27.039Z"
+  },
+  {
+    "id": "1760278563285",
+    "folderPath": "ბანკნოტები ამოცნობა",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:03.285Z",
+    "updatedAt": "2025-10-12T14:16:03.285Z"
+  },
+  {
+    "id": "1760278575364",
+    "folderPath": "ბანკნოტები ამოცნობა/USD - აშშ დოლარი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:15.364Z",
+    "updatedAt": "2025-10-12T14:16:15.364Z"
+  },
+  {
+    "id": "1760278583329",
+    "folderPath": "ბანკნოტები ამოცნობა/EURO - ევრო",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:23.329Z",
+    "updatedAt": "2025-10-12T14:16:23.329Z"
+  },
+  {
+    "id": "1760278589338",
+    "folderPath": "ბანკნოტები ამოცნობა/RUB - რუბლი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:29.338Z",
+    "updatedAt": "2025-10-12T14:16:37.394Z"
+  },
+  {
+    "id": "1760278602054",
+    "folderPath": "ბანკნოტები ამოცნობა/TRY - თურქული ლირა",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:42.054Z",
+    "updatedAt": "2025-10-12T14:16:49.947Z"
+  },
+  {
+    "id": "1760278615306",
+    "folderPath": "ბანკნოტები ამოცნობა/AMD - სომხური დრამი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:16:55.306Z",
+    "updatedAt": "2025-10-12T14:18:15.172Z"
+  },
+  {
+    "id": "1760278703469",
+    "folderPath": "ბანკნოტები ამოცნობა/AZN - აზერბაიჯანული მანეთი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:18:23.469Z",
+    "updatedAt": "2025-10-12T14:18:23.469Z"
+  },
+  {
+    "id": "1760278715597",
+    "folderPath": "ბანკნოტები ამოცნობა/PLN - პოლონური ზლოტი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:18:35.597Z",
+    "updatedAt": "2025-10-12T14:18:35.597Z"
+  },
+  {
+    "id": "1760278745192",
+    "folderPath": "ბანკნოტები ამოცნობა/ILS - ისრაელის შეკელი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:19:05.192Z",
+    "updatedAt": "2025-10-12T14:19:05.192Z"
+  },
+  {
+    "id": "1760278784676",
+    "folderPath": "ბანკნოტები ამოცნობა/SAR - საუდის რიალი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:19:44.676Z",
+    "updatedAt": "2025-10-12T14:19:44.676Z"
+  },
+  {
+    "id": "1760278791901",
+    "folderPath": "ბანკნოტები ამოცნობა/GBP - ბრიტანული ფუნტი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:19:51.901Z",
+    "updatedAt": "2025-10-12T14:19:51.901Z"
+  },
+  {
+    "id": "1760278798221",
+    "folderPath": "ბანკნოტები ამოცნობა/AED - არაბეთის გაერთიანებული საამიროების დირჰამი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:19:58.221Z",
+    "updatedAt": "2025-10-12T14:19:58.221Z"
+  },
+  {
+    "id": "1760278806078",
+    "folderPath": "ბანკნოტები ამოცნობა/AUD - ავსტრალიური დოლარი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:20:06.078Z",
+    "updatedAt": "2025-10-12T14:20:06.078Z"
+  },
+  {
+    "id": "1760278811877",
+    "folderPath": "ბანკნოტები ამოცნობა/CAD - კანადური დოლარი",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:20:11.877Z",
+    "updatedAt": "2025-10-12T14:20:11.877Z"
+  },
+  {
+    "id": "1760278817733",
+    "folderPath": "ბანკნოტები ამოცნობა/KZT - ყაზახური ტენგე",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T14:20:17.733Z",
+    "updatedAt": "2025-10-12T14:20:17.733Z"
+  },
+  {
+    "id": "1760278932688",
+    "folderPath": "idek",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-12T14:22:12.688Z",
+    "updatedAt": "2025-10-12T14:22:12.688Z"
+  },
+  {
+    "id": "1760283420674",
+    "folderPath": "sadf",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-12T15:37:00.674Z",
+    "updatedAt": "2025-10-12T15:37:00.674Z"
+  },
+  {
+    "id": "1760291200753",
+    "folderPath": "რეპორტები/შარტავა/123",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-12T17:46:40.753Z",
+    "updatedAt": "2025-10-12T17:46:40.753Z"
+  },
+  {
+    "id": "1760294210658",
+    "folderPath": "confidential",
+    "roleRestrictions": {
+      "user": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-12T18:36:50.658Z",
+    "updatedAt": "2025-10-12T18:37:00.680Z"
+  },
+  {
+    "id": "1760335233410",
+    "folderPath": "კონტრაქტები",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-13T06:00:33.410Z",
+    "updatedAt": "2025-10-13T06:00:33.410Z"
+  },
+  {
+    "id": "1760335258340",
+    "folderPath": "ხელშეკრულებები/საიჯარო ხელშეკრულებები",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-13T06:00:58.340Z",
+    "updatedAt": "2025-10-13T06:00:58.340Z"
+  },
+  {
+    "id": "1760335262649",
+    "folderPath": "ხელშეკრულებები/შრომითი ხელშეკრულებები",
+    "roleRestrictions": {
+      "user": {
+        "view": true,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {},
+    "createdAt": "2025-10-13T06:01:02.649Z",
+    "updatedAt": "2025-10-13T06:01:02.649Z"
+  },
+  {
+    "id": "1760335277112",
+    "folderPath": "ხელშეკრულებები",
+    "roleRestrictions": {
+      "user": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-13T06:01:17.112Z",
+    "updatedAt": "2025-10-13T06:01:17.112Z"
+  },
+  {
+    "id": "1760338388855",
+    "folderPath": "ობიექტების აზომვითი ნახაზები",
+    "roleRestrictions": {
+      "user": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-13T06:53:08.855Z",
+    "updatedAt": "2025-10-13T06:54:47.540Z"
+  },
+  {
+    "id": "1760338651205",
+    "folderPath": "ობიექტების ნებართვები",
+    "roleRestrictions": {
+      "user": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-13T06:57:31.205Z",
+    "updatedAt": "2025-10-13T06:58:29.329Z"
+  },
+  {
+    "id": "1760339233565",
+    "folderPath": "დაცვის პოლიცია",
+    "roleRestrictions": {
+      "user": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "branchRestrictions": {
+      "1": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "2": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "3": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "4": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "5": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      },
+      "6": {
+        "view": false,
+        "upload": false,
+        "delete": false,
+        "rename": false
+      }
+    },
+    "createdAt": "2025-10-13T07:07:13.565Z",
+    "updatedAt": "2025-10-13T07:07:57.795Z"
+  }
+]
