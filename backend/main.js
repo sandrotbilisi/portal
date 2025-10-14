@@ -389,7 +389,9 @@ app.post('/auth/login', (req, res) => {
 });
 
 app.get('/.well-known/pki-validation/B9856A1D1054AA6A0EAAFBA2B6D574EC.txt', (req, res) => {
-    res.send('B9856A1D1054AA6A0EAAFBA2B6D574EC.txt');
+    // res.send
+    // send content of file B9856A1D1054AA6A0EAAFBA2B6D574EC.txt
+    res.send(fs.readFileSync('B9856A1D1054AA6A0EAAFBA2B6D574EC.txt', 'utf8'));
 });
 
 app.post('/auth/logout', (req, res) => {
