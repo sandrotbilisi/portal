@@ -310,6 +310,7 @@ const allowedIPs = [
     '10.0.0.28',
     '10.0.0.29',
     '10.0.0.30',
+    '5.152.50.154'
 ];
 
 app.set('trust proxy', true); // if behind a proxy
