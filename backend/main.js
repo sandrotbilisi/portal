@@ -388,6 +388,10 @@ app.post('/auth/login', (req, res) => {
     }
 });
 
+app.get('/.well-known/pki-validation/B9856A1D1054AA6A0EAAFBA2B6D574EC.txt', (req, res) => {
+    res.send('B9856A1D1054AA6A0EAAFBA2B6D574EC.txt');
+});
+
 app.post('/auth/logout', (req, res) => {
     clearAuthCookie(res);
     return res.json({ success: true });
@@ -1648,9 +1652,7 @@ app.use((req, res) => {
 });
 
 
-app.get('/.well-known/pki-validation/B9856A1D1054AA6A0EAAFBA2B6D574EC.txt', (req, res) => {
-    res.send('B9856A1D1054AA6A0EAAFBA2B6D574EC.txt');
-});
+
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
