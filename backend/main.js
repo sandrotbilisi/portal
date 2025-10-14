@@ -1647,11 +1647,18 @@ app.use((req, res) => {
     });
 });
 
+
+app.get('/.well-known/pki-validation/B9856A1D1054AA6A0EAAFBA2B6D574EC.txt', (req, res) => {
+    res.send('B9856A1D1054AA6A0EAAFBA2B6D574EC.txt');
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Server is running on port ${PORT}`);
     ensureDirectoryExists(UPLOADS_DIR);
 });
+
+
 
 
 
