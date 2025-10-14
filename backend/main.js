@@ -1647,7 +1647,17 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-    logger.info(`Server is running on port ${PORT}`);
-    ensureDirectoryExists(UPLOADS_DIR);
-});
+// app.listen(PORT, '0.0.0.0', () => {
+//     logger.info(`Server is running on port ${PORT}`);
+//     ensureDirectoryExists(UPLOADS_DIR);
+// });
+
+
+
+const https = require('https');
+https.createServer({
+    key: fs.readFileSync('server.key'),
+    cert: fs.readFileSync('server.cert')
+  }, app).listen(PORT, () => {
+    console.log('Listening...')
+  })
