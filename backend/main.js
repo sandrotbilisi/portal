@@ -287,7 +287,8 @@ const allowedIPs = [
     '100.101.119.125', // Alex
     '5.152.50.154',// Vepkhvia
     '2a0b:6204:1ad8:d900:cd6:48c4:960c:1f87', // irma
-    "2a0b:6204:1ac3:6700:55c1:a1b6:89cd:851e" // irma
+    "2a0b:6204:1ac3:6700:55c1:a1b6:89cd:851e", // irma
+    '2a0b:6204:1ad8:d900:fc39:cbf8:fef1:f8af' // 
 ];
 
 app.set('trust proxy', true); // if behind a proxy
