@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-const PORT = 3000;
+const PORT = 5000;
 const UPLOADS_DIR = 'uploads';
 const ORDER_FILE_NAME = '.file-order.json';
 const METADATA_FILE_NAME = '.file-metadata.json';
