@@ -1655,9 +1655,12 @@ app.use((req, res) => {
 
 
 const https = require('https');
-https.createServer({
-    key: fs.readFileSync('server.key'),
-    cert: fs.readFileSync('server.cert')
-  }, app).listen(PORT, () => {
-    console.log('Listening...')
-  })
+https.createServer(
+    {
+      key: fs.readFileSync("localhost+2-key.pem"),
+      cert: fs.readFileSync("localhost+2.pem"),
+    },
+    app
+  ).listen(PORT, () => {
+    console.log(`🚀 Server running at https://localhost:${PORT}`);
+  });
