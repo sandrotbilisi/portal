@@ -39,6 +39,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 p-6">
+
+      
+
       <div className="w-full max-w-md bg-gray-800/60 border border-gray-700/40 rounded-2xl p-8 shadow-2xl">
         <h1 className="text-2xl font-semibold text-white mb-6 text-center">Login</h1>
         {error && (
