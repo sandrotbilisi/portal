@@ -498,7 +498,7 @@ app.post('/auth/login', (req, res) => {
 
         if ( user.companyIds ){
             user.companyIds.forEach(userCompany => {
-                console.log('comparing : ', userCompany, company)
+                console.log('comparing : ', userCompany == company)
                 if (userCompany == company){
                     isInList == true;
                 }
@@ -507,7 +507,7 @@ app.post('/auth/login', (req, res) => {
             return res.status(401).json({ success: false, message: 'This user doesnt work at any company' });
         }
 
-        if (!isInList){
+        if (isInList == false){
             return res.status(401).json({ success: false, message: 'You are trying to log in into company you dont have access too' });
         }
 
