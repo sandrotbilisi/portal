@@ -16,6 +16,7 @@ const METADATA_FILE_NAME = '.file-metadata.json';
 const USERS_DB_FILE = 'users.json';
 const BRANCHES_DB_FILE = 'branches.json';
 const PERMISSIONS_DB_FILE = 'permissions.json';
+const COMPANIES_DB_FILE = 'companies.json';
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = '7d';
 
@@ -27,6 +28,9 @@ let branches = [];
 
 // File-based permissions database
 let permissions = [];
+
+// File-based companies database
+let companies = [];
 
 // Load users from file
 function loadUsers() {
@@ -42,11 +46,12 @@ function loadUsers() {
                     id: '1',
                     username: 'admin',
                     passwordHash: bcrypt.hashSync('admin', 10),
-                    role: 'admin',
+                    role: 'systemAdmin',
                     name: 'System',
                     lastname: 'Administrator',
                     personalNumber: '000000-0000',
-                    branchIds: ['1']
+                    branchIds: ['1'],
+                    companyIds: ['exmony']
                 }
             ];
             saveUsers();
@@ -136,14 +141,69 @@ function savePermissions() {
     }
 }
 
+// Load companies from file
+function loadCompanies() {
+    try {
+        if (fs.existsSync(COMPANIES_DB_FILE)) {
+            const data = fs.readFileSync(COMPANIES_DB_FILE, 'utf8');
+            companies = JSON.parse(data);
+            logger.info(`Loaded ${companies.length} companies from database`);
+        } else {
+            // Create default company if no companies file exists
+            companies = [
+                {
+                    id: 'exmony',
+                    name: 'Exmony',
+                    identificationNumber: '000000000',
+                    logo: '',
+                    createdAt: new Date().toISOString(),
+                    createdBy: '1'
+                }
+            ];
+            saveCompanies();
+            logger.info('Created default Exmony company');
+        }
+    } catch (error) {
+        logger.error('Error loading companies:', error);
+        companies = [];
+    }
+}
+
+// Save companies to file
+function saveCompanies() {
+    try {
+        fs.writeFileSync(COMPANIES_DB_FILE, JSON.stringify(companies, null, 2));
+        logger.info('Companies saved to database');
+    } catch (error) {
+        logger.error('Error saving companies:', error);
+    }
+}
+
 // Check if user has permission to access a folder
-function checkFolderPermission(folderPath, userId, action) {
+function checkFolderPermission(folderPath, userId, action, companyId) {
     try {
         const user = users.find(u => u.id === userId);
         if (!user) return false;
         
         // Admin always has full access
-        if (user.role === 'admin') return true;
+        if (user.role === 'systemAdmin' || user.role === 'admin') {
+            // For non-systemAdmin users, validate company access
+            if (user.role !== 'systemAdmin' && companyId) {
+                const userCompanyIds = Array.isArray(user.companyIds) ? user.companyIds : [];
+                if (!userCompanyIds.includes(companyId)) {
+                    return false; // User cannot access this company's folders
+                }
+            }
+            return true;
+        }
+        
+        // For non-admin users, validate company access
+        if (companyId) {
+            const userCompanyIds = Array.isArray(user.companyIds) ? user.companyIds : [];
+            if (!userCompanyIds.includes(companyId)) {
+                return false; // User cannot access this company's folders
+            }
+        }
         
         // Find permissions for this folder path
         const permission = permissions.find(p => p.folderPath === folderPath);
@@ -200,11 +260,11 @@ function getParentPaths(folderPath) {
 }
 
 // Check if user can view a folder (including parent folder checks)
-function canViewFolder(folderPath, userId) {
+function canViewFolder(folderPath, userId, companyId) {
     // Check if user can view this folder or any parent folder
     const paths = [folderPath, ...getParentPaths(folderPath)];
     for (const path of paths) {
-        if (!checkFolderPermission(path, userId, 'view')) {
+        if (!checkFolderPermission(path, userId, 'view', companyId)) {
             return false;
         }
     }
@@ -212,23 +272,24 @@ function canViewFolder(folderPath, userId) {
 }
 
 // Filter folders based on user permissions
-function filterFoldersbyPermissions(folders, currentPath, userId) {
+function filterFoldersbyPermissions(folders, currentPath, userId, companyId) {
     const user = users.find(u => u.id === userId);
     if (!user) return [];
     
     // Admin sees everything
-    if (user.role === 'admin') return folders;
+    if (user.role === 'systemAdmin' || user.role === 'admin') return folders;
     
     return folders.filter(folder => {
         const folderPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-        return canViewFolder(folderPath, userId);
+        return canViewFolder(folderPath, userId, companyId);
     });
 }
 
-// Load users, branches, and permissions on startup
+// Load users, branches, permissions, and companies on startup
 loadUsers();
 loadBranches();
 loadPermissions();
+loadCompanies();
 
 function generateToken(user) {
     return jwt.sign({ sub: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -364,6 +425,46 @@ function requireRole(roles) {
     };
 }
 
+function requireCompanyContext(req, res, next) {
+    try {
+        const companyId = req.params.companyId;
+        
+        if (!companyId) {
+            return res.status(400).json({ success: false, message: 'Company ID is required' });
+        }
+        
+        const company = companies.find(c => c.id === companyId);
+        
+        if (!company) {
+            return res.status(404).json({ success: false, message: 'Company not found' });
+        }
+        
+        // For non-systemAdmin users, validate company membership
+        if (req.user.role !== 'systemAdmin') {
+            const user = users.find(u => u.id === req.user.sub);
+            
+            if (!user) {
+                return res.status(401).json({ success: false, message: 'User not found' });
+            }
+            
+            const userCompanyIds = Array.isArray(user.companyIds) ? user.companyIds : [];
+            
+            if (!userCompanyIds.includes(companyId)) {
+                return res.status(403).json({ success: false, message: 'You do not have access to this company' });
+            }
+        }
+        
+        // Attach company info to request
+        req.company = company;
+        req.companyId = companyId;
+        
+        next();
+    } catch (error) {
+        logger.error('Error in requireCompanyContext:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
 // Auth routes
 app.post('/auth/login', (req, res) => {
     try {
@@ -416,6 +517,13 @@ app.get('/auth/me', (req, res) => {
             return branch ? { id: branch.id, name: branch.name, location: branch.location } : null;
         }).filter(Boolean);
         
+        // Get company information for all user's companies
+        const userCompanyIds = Array.isArray(user.companyIds) ? user.companyIds : [];
+        const userCompanies = userCompanyIds.map(companyId => {
+            const company = companies.find(c => c.id === companyId);
+            return company ? { id: company.id, name: company.name, identificationNumber: company.identificationNumber, logo: company.logo } : null;
+        }).filter(Boolean);
+        
         // For backward compatibility, also include single branch info
         const primaryBranch = userBranches[0];
         
@@ -429,6 +537,8 @@ app.get('/auth/me', (req, res) => {
                 personalNumber: user.personalNumber || '',
                 branchIds: userBranchIds,
                 branches: userBranches,
+                companyIds: userCompanyIds,
+                companies: userCompanies,
                 // Backward compatibility fields
                 branchId: primaryBranch ? primaryBranch.id : '',
                 branchName: primaryBranch ? primaryBranch.name : 'N/A',
@@ -441,9 +551,9 @@ app.get('/auth/me', (req, res) => {
 });
 
 // Admin create lower-role users
-app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/users', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
-        const { username, password, role, name, lastname, personalNumber, branchId, branchIds } = req.body || {};
+        const { username, password, role, name, lastname, personalNumber, branchId, branchIds, companyIds } = req.body || {};
         
         // Validate required fields
         if (!username || !password) {
@@ -463,6 +573,14 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             return res.status(400).json({ success: false, message: 'At least one branch is required' });
         }
         
+        // Handle companyIds array
+        let userCompanyIds = [];
+        if (Array.isArray(companyIds) && companyIds.length > 0) {
+            userCompanyIds = companyIds;
+        } else {
+            return res.status(400).json({ success: false, message: 'At least one company is required' });
+        }
+        
         // Check if user exists
         if (findUserByUsername(username)) {
             return res.status(400).json({ success: false, message: 'User exists' });
@@ -478,6 +596,26 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             userBranches.push(branch);
         }
         
+        // Implement role-based company assignment rules
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            const requestingUserCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            const invalidCompanies = userCompanyIds.filter(cId => !requestingUserCompanyIds.includes(cId));
+            if (invalidCompanies.length > 0) {
+                return res.status(403).json({ success: false, message: 'You can only assign users to your own companies' });
+            }
+        }
+        
+        // Validate all companies exist
+        const userCompanies = [];
+        for (const companyId of userCompanyIds) {
+            const company = companies.find(c => c.id === String(companyId));
+            if (!company) {
+                return res.status(400).json({ success: false, message: `Invalid company ID: ${companyId}` });
+            }
+            userCompanies.push(company);
+        }
+        
         // Generate new ID
         const maxId = users.length > 0 ? Math.max(...users.map(u => parseInt(u.id) || 0)) : 0;
         
@@ -485,18 +623,20 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
             id: String(maxId + 1),
             username: String(username).trim(),
             passwordHash: bcrypt.hashSync(String(password), 10),
-            role: role === 'admin' ? 'admin' : 'user',
+            role: role === 'systemAdmin' ? 'systemAdmin' : (role === 'admin' ? 'admin' : 'user'),
             name: String(name).trim(),
             lastname: String(lastname).trim(),
             personalNumber: String(personalNumber).trim(),
-            branchIds: userBranchIds.map(id => String(id))
+            branchIds: userBranchIds.map(id => String(id)),
+            companyIds: userCompanyIds.map(id => String(id))
         };
         
         users.push(newUser);
         saveUsers();
         
         const branchNames = userBranches.map(b => b.name).join(', ');
-        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname}) - Branches: ${branchNames}`);
+        const companyNames = userCompanies.map(c => c.name).join(', ');
+        logger.info(`User created: ${newUser.username} (${newUser.name} ${newUser.lastname}) - Branches: ${branchNames} - Companies: ${companyNames}`);
         
         return res.json({ 
             success: true, 
@@ -509,6 +649,8 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
                 personalNumber: newUser.personalNumber,
                 branchIds: newUser.branchIds,
                 branches: userBranches,
+                companyIds: newUser.companyIds,
+                companies: userCompanies,
                 // Backward compatibility
                 branchId: newUser.branchIds[0],
                 branchName: userBranches[0].name
@@ -520,16 +662,35 @@ app.post('/users', requireAuth, requireRole(['admin']), (req, res) => {
     }
 });
 
-app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
-    const list = users.map(u => {
+app.get('/users', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+    // Add company-based filtering logic
+    const requestingUser = users.find(u => u.id === req.user.sub);
+    let filteredUsers = users;
+    
+    if (requestingUser && requestingUser.role !== 'systemAdmin') {
+        const requestingUserCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+        filteredUsers = users.filter(u => {
+            const uCompanyIds = Array.isArray(u.companyIds) ? u.companyIds : [];
+            return uCompanyIds.some(cId => requestingUserCompanyIds.includes(cId));
+        });
+    }
+    
+    const list = filteredUsers.map(u => {
         const userBranchIds = Array.isArray(u.branchIds) ? u.branchIds : (u.branchId ? [u.branchId] : []);
         const userBranches = userBranchIds.map(branchId => {
             const branch = branches.find(b => b.id === branchId);
             return branch ? { id: branch.id, name: branch.name, location: branch.location } : null;
         }).filter(Boolean);
         
+        const userCompanyIds = Array.isArray(u.companyIds) ? u.companyIds : [];
+        const userCompanies = userCompanyIds.map(companyId => {
+            const company = companies.find(c => c.id === companyId);
+            return company ? { id: company.id, name: company.name, identificationNumber: company.identificationNumber } : null;
+        }).filter(Boolean);
+        
         const primaryBranch = userBranches[0];
         const branchNames = userBranches.map(b => b.name).join(', ') || 'N/A';
+        const companyNames = userCompanies.map(c => c.name).join(', ') || 'N/A';
         
         return {
             id: u.id, 
@@ -541,6 +702,9 @@ app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
             branchIds: userBranchIds,
             branches: userBranches,
             branchNames: branchNames,
+            companyIds: userCompanyIds,
+            companies: userCompanies,
+            companyNames: companyNames,
             // Backward compatibility
             branchId: primaryBranch ? primaryBranch.id : '',
             branchName: primaryBranch ? primaryBranch.name : 'N/A'
@@ -550,11 +714,11 @@ app.get('/users', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Branches endpoints
-app.get('/branches', requireAuth, requireRole(['admin']), (req, res) => {
+app.get('/branches', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     res.json({ success: true, data: branches });
 });
 
-app.post('/branches', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/branches', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { name, location } = req.body || {};
         
@@ -588,7 +752,7 @@ app.post('/branches', requireAuth, requireRole(['admin']), (req, res) => {
     }
 });
 
-app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
+app.delete('/branches/:id', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { id } = req.params;
         
@@ -621,11 +785,162 @@ app.delete('/branches/:id', requireAuth, requireRole(['admin']), (req, res) => {
     }
 });
 
-// Update user
-app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
+// Company Management Endpoints
+
+// GET /companies - List All Companies (systemAdmin only)
+app.get('/companies', requireAuth, requireRole(['systemAdmin']), (req, res) => {
+    try {
+        res.json({ success: true, data: companies });
+    } catch (error) {
+        logger.error('Error listing companies:', error);
+        res.status(500).json({ success: false, message: 'Failed to list companies' });
+    }
+});
+
+// GET /companies/:id - Get Company by ID
+app.get('/companies/:id', requireAuth, (req, res) => {
     try {
         const { id } = req.params;
-        const { username, role, name, lastname, personalNumber, branchId, branchIds } = req.body || {};
+        const company = companies.find(c => c.id === id);
+        
+        if (!company) {
+            return res.status(404).json({ success: false, message: 'Company not found' });
+        }
+        
+        res.json({ success: true, data: company });
+    } catch (error) {
+        logger.error('Error getting company:', error);
+        res.status(500).json({ success: false, message: 'Failed to get company' });
+    }
+});
+
+// POST /companies - Create New Company (systemAdmin only)
+app.post('/companies', requireAuth, requireRole(['systemAdmin']), (req, res) => {
+    try {
+        const { name, identificationNumber, logo } = req.body || {};
+        
+        // Validate required fields
+        if (!name || !identificationNumber) {
+            return res.status(400).json({ success: false, message: 'Name and identification number are required' });
+        }
+        
+        // Check identificationNumber uniqueness
+        const duplicateCompany = companies.find(c => c.identificationNumber === identificationNumber.trim());
+        if (duplicateCompany) {
+            return res.status(400).json({ success: false, message: 'Company with this identification number already exists' });
+        }
+        
+        // Generate new ID
+        const maxId = companies.length > 0 ? Math.max(...companies.map(c => parseInt(c.id) || 0)) : 0;
+        const newCompanyId = String(maxId + 1);
+        
+        // Create new company object
+        const newCompany = {
+            id: newCompanyId,
+            name: String(name).trim(),
+            identificationNumber: String(identificationNumber).trim(),
+            logo: logo || '',
+            createdAt: new Date().toISOString(),
+            createdBy: req.user.sub
+        };
+        
+        companies.push(newCompany);
+        saveCompanies();
+        
+        // Create company directory
+        ensureDirectoryExists(path.join(UPLOADS_DIR, newCompany.id));
+        
+        logger.info(`Company created: ${newCompany.name} (${newCompany.identificationNumber}) by ${req.user.sub}`);
+        
+        res.json({ success: true, data: newCompany });
+    } catch (error) {
+        logger.error('Error creating company:', error);
+        res.status(500).json({ success: false, message: 'Failed to create company' });
+    }
+});
+
+// PUT /companies/:id - Update Company (systemAdmin only)
+app.put('/companies/:id', requireAuth, requireRole(['systemAdmin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, identificationNumber, logo } = req.body || {};
+        
+        const companyIndex = companies.findIndex(c => c.id === id);
+        if (companyIndex === -1) {
+            return res.status(404).json({ success: false, message: 'Company not found' });
+        }
+        
+        // Validate required fields
+        if (!name || !identificationNumber) {
+            return res.status(400).json({ success: false, message: 'Name and identification number are required' });
+        }
+        
+        // Check identificationNumber uniqueness (excluding current company)
+        const duplicateCompany = companies.find(c => c.identificationNumber === identificationNumber.trim() && c.id !== id);
+        if (duplicateCompany) {
+            return res.status(400).json({ success: false, message: 'Company with this identification number already exists' });
+        }
+        
+        // Update company object
+        companies[companyIndex] = {
+            ...companies[companyIndex],
+            name: String(name).trim(),
+            identificationNumber: String(identificationNumber).trim(),
+            logo: logo || companies[companyIndex].logo
+        };
+        
+        saveCompanies();
+        
+        logger.info(`Company updated: ${companies[companyIndex].name} (${companies[companyIndex].identificationNumber}) by ${req.user.sub}`);
+        
+        res.json({ success: true, data: companies[companyIndex] });
+    } catch (error) {
+        logger.error('Error updating company:', error);
+        res.status(500).json({ success: false, message: 'Failed to update company' });
+    }
+});
+
+// DELETE /companies/:id - Delete Company (systemAdmin only)
+app.delete('/companies/:id', requireAuth, requireRole(['systemAdmin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Prevent deletion of default company
+        if (id === 'exmony') {
+            return res.status(400).json({ success: false, message: 'Cannot delete the default company' });
+        }
+        
+        // Check if any users are assigned to this company
+        const usersInCompany = users.filter(u => Array.isArray(u.companyIds) && u.companyIds.includes(id));
+        if (usersInCompany.length > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Cannot delete company. ${usersInCompany.length} user(s) are assigned to this company.` 
+            });
+        }
+        
+        const companyIndex = companies.findIndex(c => c.id === id);
+        if (companyIndex === -1) {
+            return res.status(404).json({ success: false, message: 'Company not found' });
+        }
+        
+        companies.splice(companyIndex, 1);
+        saveCompanies();
+        
+        logger.info(`Company deleted: ${id} by ${req.user.sub}`);
+        
+        res.json({ success: true, message: 'Company deleted successfully' });
+    } catch (error) {
+        logger.error('Error deleting company:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete company' });
+    }
+});
+
+// Update user
+app.put('/users/:id', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username, role, name, lastname, personalNumber, branchId, branchIds, companyIds } = req.body || {};
         
         const userIndex = users.findIndex(u => u.id === id);
         if (userIndex === -1) {
@@ -649,6 +964,14 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
             return res.status(400).json({ success: false, message: 'At least one branch is required' });
         }
         
+        // Handle companyIds array
+        let userCompanyIds = [];
+        if (Array.isArray(companyIds) && companyIds.length > 0) {
+            userCompanyIds = companyIds;
+        } else {
+            return res.status(400).json({ success: false, message: 'At least one company is required' });
+        }
+        
         // Check if username is taken by another user
         const existingUser = findUserByUsername(username);
         if (existingUser && existingUser.id !== id) {
@@ -665,21 +988,43 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
             userBranches.push(branch);
         }
         
+        // Implement role-based company assignment rules
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            const requestingUserCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            const invalidCompanies = userCompanyIds.filter(cId => !requestingUserCompanyIds.includes(cId));
+            if (invalidCompanies.length > 0) {
+                return res.status(403).json({ success: false, message: 'You can only assign users to your own companies' });
+            }
+        }
+        
+        // Validate all companies exist
+        const userCompanies = [];
+        for (const companyId of userCompanyIds) {
+            const company = companies.find(c => c.id === String(companyId));
+            if (!company) {
+                return res.status(400).json({ success: false, message: `Invalid company ID: ${companyId}` });
+            }
+            userCompanies.push(company);
+        }
+        
         // Update user data
         users[userIndex] = {
             ...user,
             username: String(username).trim(),
-            role: role === 'admin' ? 'admin' : 'user',
+            role: role === 'systemAdmin' ? 'systemAdmin' : (role === 'admin' ? 'admin' : 'user'),
             name: String(name).trim(),
             lastname: String(lastname).trim(),
             personalNumber: String(personalNumber).trim(),
-            branchIds: userBranchIds.map(id => String(id))
+            branchIds: userBranchIds.map(id => String(id)),
+            companyIds: userCompanyIds.map(id => String(id))
         };
         
         saveUsers();
         
         const branchNames = userBranches.map(b => b.name).join(', ');
-        logger.info(`User updated: ${users[userIndex].username} (${users[userIndex].name} ${users[userIndex].lastname}) - Branches: ${branchNames}`);
+        const companyNames = userCompanies.map(c => c.name).join(', ');
+        logger.info(`User updated: ${users[userIndex].username} (${users[userIndex].name} ${users[userIndex].lastname}) - Branches: ${branchNames} - Companies: ${companyNames}`);
         
         return res.json({ 
             success: true, 
@@ -693,6 +1038,9 @@ app.put('/users/:id', requireAuth, requireRole(['admin']), (req, res) => {
                 branchIds: users[userIndex].branchIds,
                 branches: userBranches,
                 branchNames: branchNames,
+                companyIds: users[userIndex].companyIds,
+                companies: userCompanies,
+                companyNames: companyNames,
                 // Backward compatibility
                 branchId: users[userIndex].branchIds[0],
                 branchName: userBranches[0].name
@@ -912,32 +1260,33 @@ function generateUniqueFilename(originalName, destinationPath) {
 // Routes (protected)
 
 // List all items in the uploads folder
-app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
+app.get('/companies/:companyId/folders', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
-        ensureDirectoryExists(UPLOADS_DIR);
-        const files = fs.readdirSync(UPLOADS_DIR);
+        const companyUploadsDir = path.join(UPLOADS_DIR, req.companyId);
+        ensureDirectoryExists(companyUploadsDir);
+        const files = fs.readdirSync(companyUploadsDir);
         
         let filesWithInfo = files
             .filter(file => file !== ORDER_FILE_NAME && file !== METADATA_FILE_NAME) // Exclude order and metadata files
-            .map(file => getFileInfo(UPLOADS_DIR, file))
+            .map(file => getFileInfo(companyUploadsDir, file))
             .filter(info => info !== null);
         
         // Apply permission filtering for non-admin users
-        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, '', req.user.sub);
+        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, '', req.user.sub, req.companyId);
         
         // Apply custom ordering
-        const customOrder = getCustomOrder(UPLOADS_DIR);
+        const customOrder = getCustomOrder(companyUploadsDir);
         filesWithInfo = applySortOrder(filesWithInfo, customOrder);
         
         // Add permission info for each folder (for frontend to know what actions are allowed)
         let currentFolderPermissions = null;
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'systemAdmin') {
             // Check permissions for current folder (for upload capability)
             currentFolderPermissions = {
                 canView: true, // They're already viewing it
-                canUpload: checkFolderPermission('', req.user.sub, 'upload'),
-                canDelete: checkFolderPermission('', req.user.sub, 'delete'),
-                canRename: checkFolderPermission('', req.user.sub, 'rename')
+                canUpload: checkFolderPermission('', req.user.sub, 'upload', req.companyId),
+                canDelete: checkFolderPermission('', req.user.sub, 'delete', req.companyId),
+                canRename: checkFolderPermission('', req.user.sub, 'rename', req.companyId)
             };
             
             filesWithInfo = filesWithInfo.map(file => {
@@ -945,10 +1294,10 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
                 return {
                     ...file,
                     permissions: {
-                        canView: checkFolderPermission(folderPath, req.user.sub, 'view'),
-                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload'),
-                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete'),
-                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename')
+                        canView: checkFolderPermission(folderPath, req.user.sub, 'view', req.companyId),
+                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload', req.companyId),
+                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete', req.companyId),
+                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename', req.companyId)
                     }
                 };
             });
@@ -970,14 +1319,14 @@ app.get('/folders', requireAuth, requireRole(['admin', 'user']), (req, res) => {
 });
 
 // List items in a specific folder (handles nested paths)
-app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
+app.get(/^\/companies\/:companyId\/folders\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
         // Get the full path from the URL
         const fullUrlPath = req.params[0];
-        const fullPath = path.join(UPLOADS_DIR, fullUrlPath);
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, fullUrlPath);
         
         // Check if user has permission to view this folder
-        if (!canViewFolder(fullUrlPath, req.user.sub)) {
+        if (!canViewFolder(fullUrlPath, req.user.sub, req.companyId)) {
             return res.status(403).json({
                 success: false,
                 message: 'You do not have permission to access this folder'
@@ -1006,7 +1355,7 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
             .filter(info => info !== null);
         
         // Apply permission filtering for non-admin users
-        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, fullUrlPath, req.user.sub);
+        filesWithInfo = filterFoldersbyPermissions(filesWithInfo, fullUrlPath, req.user.sub, req.companyId);
         
         // Apply custom ordering
         const customOrder = getCustomOrder(fullPath);
@@ -1014,13 +1363,13 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
         
         // Add permission info for each folder (for frontend to know what actions are allowed)
         let currentFolderPermissions = null;
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'admin' && req.user.role !== 'systemAdmin') {
             // Check permissions for current folder (for upload capability)
             currentFolderPermissions = {
                 canView: true, // They're already viewing it
-                canUpload: checkFolderPermission(fullUrlPath, req.user.sub, 'upload'),
-                canDelete: checkFolderPermission(fullUrlPath, req.user.sub, 'delete'),
-                canRename: checkFolderPermission(fullUrlPath, req.user.sub, 'rename')
+                canUpload: checkFolderPermission(fullUrlPath, req.user.sub, 'upload', req.companyId),
+                canDelete: checkFolderPermission(fullUrlPath, req.user.sub, 'delete', req.companyId),
+                canRename: checkFolderPermission(fullUrlPath, req.user.sub, 'rename', req.companyId)
             };
             
             filesWithInfo = filesWithInfo.map(file => {
@@ -1028,10 +1377,10 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
                 return {
                     ...file,
                     permissions: {
-                        canView: checkFolderPermission(folderPath, req.user.sub, 'view'),
-                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload'),
-                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete'),
-                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename')
+                        canView: checkFolderPermission(folderPath, req.user.sub, 'view', req.companyId),
+                        canUpload: checkFolderPermission(folderPath, req.user.sub, 'upload', req.companyId),
+                        canDelete: checkFolderPermission(folderPath, req.user.sub, 'delete', req.companyId),
+                        canRename: checkFolderPermission(folderPath, req.user.sub, 'rename', req.companyId)
                     }
                 };
             });
@@ -1053,7 +1402,7 @@ app.get(/^\/folders\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, 
 });
 
 // Create a new folder
-app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/companies/:companyId/folders', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { folderName, folderPath: folderPathParam } = req.body;
         
@@ -1064,7 +1413,7 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
             });
         }
         
-        const fullPath = path.join(UPLOADS_DIR, folderPathParam || '', folderName);
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, folderPathParam || '', folderName);
         
         if (fs.existsSync(fullPath)) {
             return res.status(400).json({
@@ -1078,7 +1427,7 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
         // Save metadata about who created the folder
         const user = users.find(u => u.id === req.user.sub);
         const creatorName = user ? `${user.name} ${user.lastname}` : req.user.username;
-        const parentPath = path.join(UPLOADS_DIR, folderPathParam || '');
+        const parentPath = path.join(UPLOADS_DIR, req.companyId, folderPathParam || '');
         saveFileMetadata(parentPath, folderName, req.user.sub, creatorName);
         
         // Auto-create read-only permissions for new folders
@@ -1127,7 +1476,7 @@ app.post('/folders', requireAuth, requireRole(['admin']), (req, res) => {
 // Permissions Management Endpoints
 
 // Get all permissions
-app.get('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
+app.get('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         res.json({
             success: true,
@@ -1144,7 +1493,7 @@ app.get('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Get permission for a specific folder
-app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
+app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         let folderPath = decodeURIComponent(req.params[0]);
         // Special handling for root directory
@@ -1168,7 +1517,7 @@ app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res)
 });
 
 // Create or update permission for a folder
-app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { folderPath, roleRestrictions, branchRestrictions } = req.body;
         
@@ -1220,7 +1569,7 @@ app.post('/permissions', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Delete permission for a folder
-app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, res) => {
+app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         let folderPath = decodeURIComponent(req.params[0]);
         // Special handling for root directory
@@ -1257,7 +1606,7 @@ app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['admin']), (req, r
 });
 
 // Upload a file
-app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
+app.post('/companies/:companyId/files', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     const upload = multer();
     
     upload.fields([
@@ -1277,7 +1626,7 @@ app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
             const { folderPath: folderPathParam } = req.body;
             
             // Check upload permission for non-admin users
-            if (req.user.role !== 'admin' && !checkFolderPermission(folderPathParam || '', req.user.sub, 'upload')) {
+            if (req.user.role !== 'systemAdmin' && req.user.role !== 'admin' && !checkFolderPermission(folderPathParam || '', req.user.sub, 'upload', req.companyId)) {
                 return res.status(403).json({
                     success: false,
                     message: 'You do not have permission to upload files to this folder'
@@ -1292,7 +1641,7 @@ app.post('/files', requireAuth, requireRole(['admin', 'user']), (req, res) => {
             }
             
             const file = req.files.file[0];
-            const destinationPath = path.join(UPLOADS_DIR, folderPathParam || '');
+            const destinationPath = path.join(UPLOADS_DIR, req.companyId, folderPathParam || '');
             
             // Ensure destination directory exists
             ensureDirectoryExists(destinationPath);
@@ -1344,17 +1693,17 @@ app.use((error, req, res, next) => {
 });
 
 // Delete a file or folder
-app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
+app.delete(/^\/companies\/:companyId\/files\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
         const filePath = req.params[0];
-        const fullPath = path.join(UPLOADS_DIR, filePath);
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
         
         // Get the folder path (parent directory)
         const folderPath = path.dirname(filePath).replace(/\\/g, '/');
         const normalizedFolderPath = folderPath === '.' ? '' : folderPath;
         
         // Check delete permission for non-admin users
-        if (req.user.role !== 'admin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'delete')) {
+        if (req.user.role !== 'admin' && req.user.role !== 'systemAdmin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'delete', req.companyId)) {
             return res.status(403).json({
                 success: false,
                 message: 'You do not have permission to delete files in this folder'
@@ -1395,19 +1744,19 @@ app.delete(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req,
 });
 
 // Rename a file or folder
-app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, res) => {
+app.put(/^\/companies\/:companyId\/files\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
         const filePath = req.params[0];
         const { newName, updateYouTubeTitle, newTitle } = req.body;
         
-        const fullPath = path.join(UPLOADS_DIR, filePath);
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
         
         // Get the folder path (parent directory)
         const folderPath = path.dirname(filePath).replace(/\\/g, '/');
         const normalizedFolderPath = folderPath === '.' ? '' : folderPath;
         
         // Check rename permission for non-admin users
-        if (req.user.role !== 'admin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'rename')) {
+        if (req.user.role !== 'admin' && req.user.role !== 'systemAdmin' && !checkFolderPermission(normalizedFolderPath, req.user.sub, 'rename', req.companyId)) {
             return res.status(403).json({
                 success: false,
                 message: 'You do not have permission to rename files in this folder'
@@ -1496,7 +1845,7 @@ app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, re
             message: 'File or folder renamed successfully',
             data: {
                 oldPath: filePath,
-                newPath: path.relative(UPLOADS_DIR, newFullPath)
+                newPath: path.relative(path.join(UPLOADS_DIR, req.companyId), newFullPath)
             }
         });
     } catch (error) {
@@ -1510,7 +1859,7 @@ app.put(/^\/files\/(.+)$/, requireAuth, requireRole(['admin', 'user']), (req, re
 });
 
 // Update file order
-app.post('/folders/order', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/companies/:companyId/folders/order', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { folderPath = '', order } = req.body;
         
@@ -1521,7 +1870,7 @@ app.post('/folders/order', requireAuth, requireRole(['admin']), (req, res) => {
             });
         }
         
-        const fullPath = path.join(UPLOADS_DIR, folderPath);
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, folderPath);
         
         if (!fs.existsSync(fullPath)) {
             return res.status(404).json({
@@ -1554,7 +1903,7 @@ app.post('/folders/order', requireAuth, requireRole(['admin']), (req, res) => {
 });
 
 // Add YouTube video
-app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/companies/:companyId/youtube', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { url, title, folderPath = '' } = req.body;
         
@@ -1575,7 +1924,7 @@ app.post('/youtube', requireAuth, requireRole(['admin']), (req, res) => {
         }
         
         // Create destination directory
-        const destinationPath = path.join(UPLOADS_DIR, folderPath);
+        const destinationPath = path.join(UPLOADS_DIR, req.companyId, folderPath);
         ensureDirectoryExists(destinationPath);
         
         // Get uploader information
@@ -1660,6 +2009,7 @@ app.use((req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Server is running on port ${PORT}`);
     ensureDirectoryExists(UPLOADS_DIR);
+    ensureDirectoryExists(path.join(UPLOADS_DIR, 'exmony'));
 });
 
 
