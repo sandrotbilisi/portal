@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DraggableFileList } from "../../components/file-manager/DraggableFileList";
 import { PermissionsModal } from "../../components/modals/PermissionsModal";
+import { Company } from "@/types";
+import { getCompanyName } from "@/utils";
 
 // API Configuration - Change this to easily switch between environments
 // Examples:
@@ -68,6 +70,9 @@ export default function Home() {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [permissionsFolder, setPermissionsFolder] = useState<Folder | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [userCompanies, setUserCompanies] = useState<Company[]>([]);
 
   // Configure axios to send cookies
   axios.defaults.withCredentials = true;
@@ -75,7 +80,10 @@ export default function Home() {
   const fetchFolders = async (retries = 1) => {
     try {
       setLoading(true);
-      const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
+      const companyId = getActiveCompanyId();
+      const url = currentPath 
+        ? `${API_BASE_URL}/companies/${companyId}/folders/${currentPath}` 
+        : `${API_BASE_URL}/companies/${companyId}/folders`;
       const response = await axios.get(url, {
         timeout: 10000 // 10 second timeout
       });
@@ -103,7 +111,57 @@ export default function Home() {
 
   useEffect(() => {
     fetchFolders();
-  }, [currentPath]);
+  }, [currentPath, selectedCompanyId]);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/auth/me`);
+        if (res.data?.data) {
+          const role = res.data.data.role;
+          setUserRole(role);
+          const companies = res.data.data.companies || [];
+          setUserCompanies(companies);
+          
+          if (role === 'systemAdmin') {
+            // Fetch all companies for systemAdmin
+            const allCompaniesRes = await axios.get(`${API_BASE_URL}/companies`);
+            setUserCompanies(allCompaniesRes.data.data || []);
+          }
+          
+          // Initialize selectedCompanyId from localStorage or default to COMPANY_ID
+          const storedCompanyId = localStorage.getItem('selectedCompanyId');
+          const defaultCompanyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+          if (storedCompanyId) {
+            setSelectedCompanyId(storedCompanyId);
+          } else if (defaultCompanyId) {
+            setSelectedCompanyId(defaultCompanyId);
+            localStorage.setItem('selectedCompanyId', defaultCompanyId);
+          } else if (companies.length > 0) {
+            // Use first company if available
+            const firstCompanyId = companies[0].id;
+            setSelectedCompanyId(firstCompanyId);
+            localStorage.setItem('selectedCompanyId', firstCompanyId);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user info:', err);
+      }
+    };
+    fetchUserInfo();
+  }, []);
+
+  // Helper function to get active company ID
+  const getActiveCompanyId = (): string => {
+    if (selectedCompanyId) {
+      return selectedCompanyId;
+    }
+    const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+    if (!companyId) {
+      throw new Error('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+    }
+    return companyId;
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -203,7 +261,8 @@ export default function Home() {
       handleFolderClick(folder.name);
     } else if (isImageFile(folder.name)) {
       const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedImage(`${API_BASE_URL}/uploads/${imagePath}`);
+      const companyId = getActiveCompanyId();
+      setSelectedImage(`${API_BASE_URL}/uploads/${companyId}/${imagePath}`);
       setIsImageModalOpen(true);
     } else if (folder.name.endsWith('.json') && folder.type === 'youtube') {
       // Handle YouTube video files
@@ -238,7 +297,8 @@ export default function Home() {
         formData.append('file', file);
         formData.append('folderPath', currentPath);
 
-        const response = await axios.post(`${API_BASE_URL}/files`, formData, {
+        const companyId = getActiveCompanyId();
+        const response = await axios.post(`${API_BASE_URL}/companies/${companyId}/files`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -309,7 +369,8 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/folders`, {
+      const companyId = getActiveCompanyId();
+      const response = await axios.post(`${API_BASE_URL}/companies/${companyId}/folders`, {
         folderName: newFolderName.trim(),
         folderPath: currentPath
       });
@@ -373,7 +434,8 @@ export default function Home() {
       
       // For YouTube videos, we update the JSON content instead of renaming the file
       if (renameItem.type === 'youtube') {
-        const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
+        const companyId = getActiveCompanyId();
+        const response = await axios.put(`${API_BASE_URL}/companies/${companyId}/files/${filePath}`, {
           updateYouTubeTitle: true,
           newTitle: newItemName.trim()
         });
@@ -388,7 +450,8 @@ export default function Home() {
         }
       } else {
         // Regular file/folder rename
-        const response = await axios.put(`${API_BASE_URL}/files/${filePath}`, {
+        const companyId = getActiveCompanyId();
+        const response = await axios.put(`${API_BASE_URL}/companies/${companyId}/files/${filePath}`, {
           newName: newItemName.trim()
         });
 
@@ -417,7 +480,8 @@ export default function Home() {
 
     try {
       const filePath = currentPath ? `${currentPath}/${deleteItem.name}` : deleteItem.name;
-      const response = await axios.delete(`${API_BASE_URL}/files/${filePath}`);
+      const companyId = getActiveCompanyId();
+      const response = await axios.delete(`${API_BASE_URL}/companies/${companyId}/files/${filePath}`);
 
       if (response.data.success) {
         // Refresh the folder contents
@@ -491,7 +555,8 @@ export default function Home() {
       setIsAddingYouTube(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/youtube`, {
+      const companyId = getActiveCompanyId();
+      const response = await fetch(`${API_BASE_URL}/companies/${companyId}/youtube`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -532,7 +597,8 @@ export default function Home() {
 
   const openPdfModal = (fileName: string) => {
     const pdfPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedPdf(`${API_BASE_URL}/uploads/${pdfPath}`);
+    const companyId = getActiveCompanyId();
+    setSelectedPdf(`${API_BASE_URL}/uploads/${companyId}/${pdfPath}`);
     setIsPdfModalOpen(true);
   };
 
@@ -543,7 +609,8 @@ export default function Home() {
 
   const openVideoFileModal = (fileName: string) => {
     const videoPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    setSelectedVideoFile(`${API_BASE_URL}/uploads/${videoPath}`);
+    const companyId = getActiveCompanyId();
+    setSelectedVideoFile(`${API_BASE_URL}/uploads/${companyId}/${videoPath}`);
     setIsVideoFileModalOpen(true);
   };
 
@@ -583,7 +650,8 @@ export default function Home() {
 
   const openDocumentModal = (fileName: string) => {
     const docPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const fullUrl = `${API_BASE_URL}/uploads/${docPath}`;
+    const companyId = getActiveCompanyId();
+    const fullUrl = `${API_BASE_URL}/uploads/${companyId}/${docPath}`;
     setSelectedDocument(fullUrl);
     setDocumentType(getDocumentType(fileName));
     setIsDocumentModalOpen(true);
@@ -630,8 +698,9 @@ export default function Home() {
 
     // Send new order to backend
     try {
+      const companyId = getActiveCompanyId();
       const fileNames = newOrder.map(f => f.name);
-      await axios.post(`${API_BASE_URL}/folders/order`, {
+      await axios.post(`${API_BASE_URL}/companies/${companyId}/folders/order`, {
         folderPath: currentPath,
         order: fileNames
       });
@@ -711,6 +780,38 @@ export default function Home() {
                 </svg>
               </button>
               
+              {/* Company Selector - Only for systemAdmin */}
+              {userRole === 'systemAdmin' && userCompanies.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <select
+                    value={selectedCompanyId || ''}
+                    onChange={(e) => {
+                      const newCompanyId = e.target.value;
+                      setSelectedCompanyId(newCompanyId);
+                      localStorage.setItem('selectedCompanyId', newCompanyId);
+                    }}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl border border-gray-600/30 cursor-pointer transition-colors duration-200"
+                  >
+                    {userCompanies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Companies Button - Only for systemAdmin */}
+              {userRole === 'systemAdmin' && (
+                <button
+                  onClick={() => router.push('/admin/companies')}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors duration-200"
+                >Companies</button>
+              )}
+              
               <button
                 onClick={() => router.push('/admin/branches')}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors duration-200"
@@ -731,24 +832,32 @@ export default function Home() {
         {/* Breadcrumb Navigation */}
         <div className="mb-6">
           <nav className="flex items-center space-x-2 text-sm">
-            <button
-              onClick={() => {
-                setCurrentPath("");
-                setPathHistory([]);
-              }}
-              className="text-gray-400 hover:text-white transition-colors duration-200"
-            >
-              Home
-            </button>
+            {selectedCompanyId && userCompanies.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setCurrentPath("");
+                    setPathHistory([]);
+                  }}
+                  className="flex items-center space-x-1 text-blue-300 hover:text-blue-200 font-medium transition-colors duration-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <span>{getCompanyName(selectedCompanyId, userCompanies)}</span>
+                </button>
+                {getBreadcrumbs().length > 0 && <span className="text-gray-500">/</span>}
+              </div>
+            )}
             {getBreadcrumbs().map((part, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <span className="text-gray-500">/</span>
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
                   className="text-gray-400 hover:text-white transition-colors duration-200"
                 >
                   {part}
                 </button>
+                {index < getBreadcrumbs().length - 1 && <span className="text-gray-500">/</span>}
               </div>
             ))}
             {currentPath && (
@@ -766,6 +875,18 @@ export default function Home() {
             )}
           </nav>
         </div>
+
+        {/* Company Context Indicator */}
+        {userRole === 'systemAdmin' && selectedCompanyId && userCompanies.length > 0 && (
+          <div className="mb-4">
+            <div className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg text-sm inline-flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span>Currently viewing: <strong>{getCompanyName(selectedCompanyId, userCompanies)}</strong></span>
+            </div>
+          </div>
+        )}
 
         {/* Success Message */}
         {successMessage && (

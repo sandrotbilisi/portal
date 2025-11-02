@@ -83,7 +83,15 @@ export default function UserDashboard() {
   const fetchFolders = async (retries = 1) => {
     try {
       setLoading(true);
-      const url = currentPath ? `${API_BASE_URL}/folders/${currentPath}` : `${API_BASE_URL}/folders`;
+      const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+      if (!companyId) {
+        setError('Company ID is not configured. Please contact administrator.');
+        setLoading(false);
+        return;
+      }
+      const url = currentPath 
+        ? `${API_BASE_URL}/companies/${companyId}/folders/${currentPath}` 
+        : `${API_BASE_URL}/companies/${companyId}/folders`;
       const response = await axios.get(url, {
         timeout: 10000 // 10 second timeout
       });
@@ -261,22 +269,26 @@ export default function UserDashboard() {
       handleFolderClick(folder.name);
     } else if (isImageFile(folder.name)) {
       const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedImage(`${API_BASE_URL}/uploads/${imagePath}`);
+      const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+      setSelectedImage(`${API_BASE_URL}/uploads/${companyId}/${imagePath}`);
       setIsImageModalOpen(true);
     } else if (folder.name.endsWith('.json') && folder.type === 'youtube') {
       setSelectedVideo(folder);
       setIsVideoModalOpen(true);
     } else if (folder.name.toLowerCase().endsWith('.pdf')) {
       const pdfPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedPdf(`${API_BASE_URL}/uploads/${pdfPath}`);
+      const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+      setSelectedPdf(`${API_BASE_URL}/uploads/${companyId}/${pdfPath}`);
       setIsPdfModalOpen(true);
     } else if (isVideoFile(folder.name)) {
       const videoPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedVideoFile(`${API_BASE_URL}/uploads/${videoPath}`);
+      const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+      setSelectedVideoFile(`${API_BASE_URL}/uploads/${companyId}/${videoPath}`);
       setIsVideoFileModalOpen(true);
     } else if (isDocumentFile(folder.name)) {
       const docPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      setSelectedDocument(`${API_BASE_URL}/uploads/${docPath}`);
+      const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+      setSelectedDocument(`${API_BASE_URL}/uploads/${companyId}/${docPath}`);
       setDocumentType(getDocumentType(folder.name));
       setIsDocumentModalOpen(true);
     }
@@ -284,7 +296,8 @@ export default function UserDashboard() {
 
   const handleDownload = (folder: Folder) => {
     const filePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-    const downloadUrl = `${API_BASE_URL}/uploads/${filePath}`;
+    const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+    const downloadUrl = `${API_BASE_URL}/uploads/${companyId}/${filePath}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = folder.name;
@@ -304,7 +317,11 @@ export default function UserDashboard() {
         formData.append('file', file);
         formData.append('folderPath', currentPath);
 
-        const response = await axios.post(`${API_BASE_URL}/files`, formData, {
+        const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
+        if (!companyId) {
+          throw new Error('Company ID is not configured. Please contact administrator.');
+        }
+        const response = await axios.post(`${API_BASE_URL}/companies/${companyId}/files`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },

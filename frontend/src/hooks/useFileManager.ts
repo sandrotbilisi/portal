@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Folder, FileManagerState } from '../types';
-import { buildApiUrl } from '../utils';
+import { buildApiUrl, API_BASE_URL } from '../utils';
 
-export const useFileManager = () => {
+export const useFileManager = (companyId: string) => {
   const [state, setState] = useState<FileManagerState>({
     folders: [],
     loading: true,
@@ -14,10 +14,22 @@ export const useFileManager = () => {
     pathHistory: []
   });
 
+  // Local helper to build company-scoped API URLs
+  const buildCompanyApiUrl = (endpoint: string, path?: string): string => {
+    if (!companyId || companyId.trim() === '') {
+      throw new Error('Company ID is required');
+    }
+    const baseUrl = `${API_BASE_URL}/companies/${companyId}/${endpoint}`;
+    return path ? `${baseUrl}/${path}` : baseUrl;
+  };
+
   const fetchFolders = async (path?: string) => {
     try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const url = buildApiUrl('folders', path);
+      const url = buildCompanyApiUrl('folders', path);
       const response = await axios.get(url);
       
       if (response.data.success) {
@@ -38,13 +50,16 @@ export const useFileManager = () => {
 
   const uploadFiles = async (files: FileList, onProgress?: (progress: number) => void) => {
     try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folderPath', state.currentPath);
 
-        const response = await axios.post(buildApiUrl('files'), formData, {
+        const response = await axios.post(buildCompanyApiUrl('files'), formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -71,7 +86,10 @@ export const useFileManager = () => {
 
   const createFolder = async (folderName: string) => {
     try {
-      const response = await axios.post(buildApiUrl('folders'), {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      const response = await axios.post(buildCompanyApiUrl('folders'), {
         folderName: folderName.trim(),
         folderPath: state.currentPath
       });
@@ -93,8 +111,11 @@ export const useFileManager = () => {
 
   const renameItem = async (item: Folder, newName: string) => {
     try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
       const filePath = state.currentPath ? `${state.currentPath}/${item.name}` : item.name;
-      const response = await axios.put(buildApiUrl('files', filePath), {
+      const response = await axios.put(buildCompanyApiUrl('files', filePath), {
         newName: newName.trim()
       });
 
@@ -115,8 +136,11 @@ export const useFileManager = () => {
 
   const deleteItem = async (item: Folder) => {
     try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
       const filePath = state.currentPath ? `${state.currentPath}/${item.name}` : item.name;
-      const response = await axios.delete(buildApiUrl('files', filePath));
+      const response = await axios.delete(buildCompanyApiUrl('files', filePath));
 
       if (response.data.success) {
         await fetchFolders(state.currentPath);
@@ -135,7 +159,10 @@ export const useFileManager = () => {
 
   const addYouTubeVideo = async (url: string, title: string) => {
     try {
-      const response = await fetch(buildApiUrl('youtube'), {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      const response = await fetch(buildCompanyApiUrl('youtube'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -213,10 +240,12 @@ export const useFileManager = () => {
     setState(prev => ({ ...prev, error }));
   };
 
-  // Fetch folders when currentPath changes
+  // Fetch folders when currentPath or companyId changes
   useEffect(() => {
-    fetchFolders(state.currentPath);
-  }, [state.currentPath]);
+    if (companyId) {
+      fetchFolders(state.currentPath);
+    }
+  }, [state.currentPath, companyId]);
 
   return {
     ...state,

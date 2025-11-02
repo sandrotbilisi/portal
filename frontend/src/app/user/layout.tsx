@@ -2,19 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { MeResponse } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-interface MeResponse {
-  username: string;
-  role: "admin" | "user";
-  name: string;
-  lastname: string;
-  personalNumber: string;
-  branchId: string;
-  branchName: string;
-  branchLocation: string;
-}
 
 export default function UserLayout({
   children,
@@ -33,8 +23,8 @@ export default function UserLayout({
         const res = await axios.get(`${API_BASE_URL}/auth/me`);
         if (res.data?.data) {
           const info: MeResponse = res.data.data;
-          // Allow both users and admins to access user section
-          if (info.role === 'user' || info.role === 'admin') {
+          // Allow users, admins, and systemAdmins to access user section
+          if (info.role === 'user' || info.role === 'admin' || info.role === 'systemAdmin') {
             setAuthorized(true);
           } else {
             router.replace('/unauthorized');

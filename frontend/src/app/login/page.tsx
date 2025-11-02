@@ -2,6 +2,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { COMPANY_NAME, COMPANY_LOGO } from "@/utils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -21,8 +22,8 @@ export default function LoginPage() {
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
       const role = res.data?.data?.role;
-      if (role === 'admin') {
-        // Redirect admins to admin dashboard
+      if (role === 'systemAdmin' || role === 'admin') {
+        // Redirect systemAdmin and admins to admin dashboard
         router.replace('/admin');
       } else if (role === 'user') {
         // Redirect regular users to user dashboard
@@ -39,11 +40,25 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 p-6">
+      <div className="w-full max-w-md">
+        {/* Company Branding Section */}
+        {(COMPANY_LOGO || COMPANY_NAME) && (
+          <div className="mb-8 text-center">
+            {COMPANY_LOGO && (
+              <img 
+                src={COMPANY_LOGO} 
+                alt={COMPANY_NAME || 'Company Logo'} 
+                className="mx-auto mb-4 max-w-[200px] max-h-[100px] object-contain"
+              />
+            )}
+            {COMPANY_NAME && (
+              <h2 className="text-3xl font-bold text-white">{COMPANY_NAME}</h2>
+            )}
+          </div>
+        )}
 
-      
-
-      <div className="w-full max-w-md bg-gray-800/60 border border-gray-700/40 rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-2xl font-semibold text-white mb-6 text-center">Login</h1>
+        <div className="w-full max-w-md bg-gray-800/60 border border-gray-700/40 rounded-2xl p-8 shadow-2xl">
+          <h1 className="text-2xl font-semibold text-white mb-6 text-center">Login</h1>
         {error && (
           <div className="mb-4 text-red-300 bg-red-900/30 border border-red-700/40 rounded-lg p-3">{error}</div>
         )}
@@ -76,6 +91,7 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,25 @@
 // API Configuration
 export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
+// Company Configuration
+export const COMPANY_ID = process.env.NEXT_PUBLIC_COMPANY_ID;
+export const COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME;
+export const COMPANY_LOGO = process.env.NEXT_PUBLIC_COMPANY_LOGO;
+
+// Company Context Utilities
+export const getCompanyContext = () => {
+  return {
+    companyId: COMPANY_ID,
+    companyName: COMPANY_NAME,
+    companyLogo: COMPANY_LOGO,
+  };
+};
+
+// Company Validation Utility
+export const hasCompanyContext = (): boolean => {
+  return !!COMPANY_ID && COMPANY_ID.trim() !== '';
+};
+
 // File size formatting
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
@@ -123,4 +142,30 @@ export const buildApiUrl = (endpoint: string, path?: string): string => {
 
 export const buildFileUrl = (filePath: string): string => {
   return `${API_BASE_URL}/uploads/${filePath}`;
+};
+
+// Company-aware API URL builder
+export const buildCompanyApiUrl = (companyId: string, endpoint: string, path?: string): string => {
+  if (!companyId || companyId.trim() === '') {
+    throw new Error('Company ID is required');
+  }
+  const baseUrl = `${API_BASE_URL}/companies/${companyId}/${endpoint}`;
+  return path ? `${baseUrl}/${path}` : baseUrl;
+};
+
+// Get active company ID (from localStorage or environment variable)
+export const getActiveCompanyId = (): string | null => {
+  if (typeof window !== 'undefined') {
+    const storedCompanyId = localStorage.getItem('selectedCompanyId');
+    if (storedCompanyId) {
+      return storedCompanyId;
+    }
+  }
+  return COMPANY_ID || null;
+};
+
+// Get company name from companies array
+export const getCompanyName = (companyId: string, companies: { id: string; name: string }[]): string => {
+  const company = companies.find(c => c.id === companyId);
+  return company ? company.name : companyId;
 };

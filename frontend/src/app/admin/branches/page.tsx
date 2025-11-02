@@ -29,7 +29,7 @@ export default function BranchesPage() {
       setLoading(true);
       const me = await axios.get(`${API_BASE_URL}/auth/me`);
       if (!me.data?.data) return router.replace('/login');
-      if (me.data.data.role !== 'admin') return router.replace('/unauthorized');
+      if (me.data.data.role !== 'systemAdmin' && me.data.data.role !== 'admin') return router.replace('/unauthorized');
       const res = await axios.get(`${API_BASE_URL}/branches`);
       setBranches(res.data.data || []);
     } catch (err: any) {

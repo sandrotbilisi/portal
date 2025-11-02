@@ -365,7 +365,11 @@ export default function UsersPage() {
                       </td>
                       <td className="py-3 pr-4">
                         <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                          u.role === 'admin' ? 'bg-blue-500/20 text-blue-300' : 'bg-green-500/20 text-green-300'
+                          u.role === 'systemAdmin' 
+                            ? 'bg-purple-500/20 text-purple-300' 
+                            : u.role === 'admin' 
+                            ? 'bg-blue-500/20 text-blue-300' 
+                            : 'bg-green-500/20 text-green-300'
                         }`}>
                           {u.role}
                         </span>

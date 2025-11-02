@@ -2,19 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { MeResponse } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-interface MeResponse {
-  username: string;
-  role: "admin" | "user";
-  name: string;
-  lastname: string;
-  personalNumber: string;
-  branchId: string;
-  branchName: string;
-  branchLocation: string;
-}
 
 export default function RootPage() {
   const router = useRouter();
@@ -29,7 +19,7 @@ export default function RootPage() {
         if (res.data?.data) {
           const info: MeResponse = res.data.data;
           // Redirect based on role
-          if (info.role === 'admin') {
+          if (info.role === 'systemAdmin' || info.role === 'admin') {
             router.replace('/admin');
           } else if (info.role === 'user') {
             router.replace('/user');

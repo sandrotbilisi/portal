@@ -53,16 +53,27 @@ export interface Branch {
   location: string;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  identificationNumber: string;
+  logo: string;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   username: string;
-  role: "admin" | "user";
+  role: "systemAdmin" | "admin" | "user";
   name: string;
   lastname: string;
   personalNumber: string;
   branchIds: string[];
   branches: Branch[];
   branchNames: string;
+  companyIds: string[];
+  companies: Company[];
+  companyNames: string;
   // Backward compatibility
   branchId?: string;
   branchName?: string;
@@ -70,12 +81,14 @@ export interface User {
 
 export interface MeResponse {
   username: string;
-  role: "admin" | "user";
+  role: "systemAdmin" | "admin" | "user";
   name: string;
   lastname: string;
   personalNumber: string;
   branchIds: string[];
   branches: Branch[];
+  companyIds: string[];
+  companies: Company[];
   // Backward compatibility
   branchId?: string;
   branchName?: string;
