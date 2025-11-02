@@ -507,6 +507,7 @@ app.post('/auth/login', (req, res) => {
             return res.status(401).json({ success: false, message: 'This user doesnt work at any company' });
         }
 
+        console.log('came with a ', isInList)
         if (isInList == false){
             return res.status(401).json({ success: false, message: 'You are trying to log in into company you dont have access too' });
         }
