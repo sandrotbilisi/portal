@@ -185,6 +185,11 @@ function checkFolderPermission(folderPath, userId, action, companyId) {
         const user = users.find(u => u.id === userId);
         if (!user) return false;
         
+        // Defensive check: require companyId for non-systemAdmin roles
+        if (user.role !== 'systemAdmin' && !companyId) {
+            return false;
+        }
+        
         // Admin always has full access
         if (user.role === 'systemAdmin' || user.role === 'admin') {
             // For non-systemAdmin users, validate company access
@@ -205,8 +210,20 @@ function checkFolderPermission(folderPath, userId, action, companyId) {
             }
         }
         
-        // Find permissions for this folder path
-        const permission = permissions.find(p => p.folderPath === folderPath);
+        // Find permissions for this folder path and company
+        // Handle backward compatibility: if permission has no companyId, it's legacy and applies to all companies
+        // For non-systemAdmin users, only check permissions with matching companyId
+        const permission = permissions.find(p => {
+            if (p.folderPath !== folderPath) return false;
+            // Legacy permissions (no companyId) - only apply for systemAdmin or if explicitly matched
+            if (!p.companyId) {
+                // For backward compatibility, legacy permissions apply to all for systemAdmin
+                // For non-systemAdmin, we skip legacy permissions (they don't have company context)
+                return user.role === 'systemAdmin';
+            }
+            // New permissions with companyId - match by companyId
+            return p.companyId === companyId;
+        });
         
         // If no permissions set, allow access (default behavior)
         if (!permission) return true;
@@ -480,8 +497,8 @@ app.post('/auth/login', (req, res) => {
         setAuthCookie(res, token);
         return res.json({ 
             success: true, 
-            data: { username: user.username, role: user.role },
-            token: token // Add this line
+            data: { username: user.username, role: user.role }
+            // Token removed - using cookies only for consistency
         });
     } catch (error) {
         logger.error('Login error:', error);
@@ -831,8 +848,14 @@ app.post('/companies', requireAuth, requireRole(['systemAdmin']), (req, res) => 
             return res.status(400).json({ success: false, message: 'Name and identification number are required' });
         }
         
-        // Check identificationNumber uniqueness
-        const duplicateCompany = companies.find(c => c.identificationNumber === identificationNumber.trim());
+        // Normalize identificationNumber (strip non-alphanumeric, trim)
+        const normalizedIdNum = identificationNumber.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        
+        // Check identificationNumber uniqueness using normalized value
+        const duplicateCompany = companies.find(c => {
+            const existingNormalized = String(c.identificationNumber || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            return existingNormalized === normalizedIdNum;
+        });
         if (duplicateCompany) {
             return res.status(400).json({ success: false, message: 'Company with this identification number already exists' });
         }
@@ -841,11 +864,11 @@ app.post('/companies', requireAuth, requireRole(['systemAdmin']), (req, res) => 
         const maxId = companies.length > 0 ? Math.max(...companies.map(c => parseInt(c.id) || 0)) : 0;
         const newCompanyId = String(maxId + 1);
         
-        // Create new company object
+        // Create new company object with normalized identificationNumber
         const newCompany = {
             id: newCompanyId,
             name: String(name).trim(),
-            identificationNumber: String(identificationNumber).trim(),
+            identificationNumber: normalizedIdNum, // Use normalized value
             logo: logo || '',
             createdAt: new Date().toISOString(),
             createdBy: req.user.sub
@@ -882,17 +905,24 @@ app.put('/companies/:id', requireAuth, requireRole(['systemAdmin']), (req, res) 
             return res.status(400).json({ success: false, message: 'Name and identification number are required' });
         }
         
-        // Check identificationNumber uniqueness (excluding current company)
-        const duplicateCompany = companies.find(c => c.identificationNumber === identificationNumber.trim() && c.id !== id);
+        // Normalize identificationNumber (strip non-alphanumeric, trim)
+        const normalizedIdNum = identificationNumber.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        
+        // Check identificationNumber uniqueness using normalized value (excluding current company)
+        const duplicateCompany = companies.find(c => {
+            if (c.id === id) return false;
+            const existingNormalized = String(c.identificationNumber || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            return existingNormalized === normalizedIdNum;
+        });
         if (duplicateCompany) {
             return res.status(400).json({ success: false, message: 'Company with this identification number already exists' });
         }
         
-        // Update company object
+        // Update company object with normalized identificationNumber
         companies[companyIndex] = {
             ...companies[companyIndex],
             name: String(name).trim(),
-            identificationNumber: String(identificationNumber).trim(),
+            identificationNumber: normalizedIdNum, // Use normalized value
             logo: logo || companies[companyIndex].logo
         };
         
@@ -931,12 +961,35 @@ app.delete('/companies/:id', requireAuth, requireRole(['systemAdmin']), (req, re
             return res.status(404).json({ success: false, message: 'Company not found' });
         }
         
+        // Hard-delete policy: Remove uploads directory and permissions
+        const uploadsPath = path.join(UPLOADS_DIR, id);
+        if (fs.existsSync(uploadsPath)) {
+            try {
+                fs.rmSync(uploadsPath, { recursive: true, force: true });
+                logger.info(`Deleted uploads directory for company: ${id}`);
+            } catch (error) {
+                logger.error(`Error deleting uploads directory for company ${id}:`, error);
+            }
+        }
+        
+        // Remove permissions associated with this company
+        const initialPermissionCount = permissions.length;
+        permissions = permissions.filter(p => p.companyId !== id);
+        const removedPermissionCount = initialPermissionCount - permissions.length;
+        if (removedPermissionCount > 0) {
+            savePermissions();
+            logger.info(`Removed ${removedPermissionCount} permission(s) for company: ${id}`);
+        }
+        
         companies.splice(companyIndex, 1);
         saveCompanies();
         
         logger.info(`Company deleted: ${id} by ${req.user.sub}`);
         
-        res.json({ success: true, message: 'Company deleted successfully' });
+        res.json({ 
+            success: true, 
+            message: `Company deleted successfully. Removed uploads directory and ${removedPermissionCount} permission(s).` 
+        });
     } catch (error) {
         logger.error('Error deleting company:', error);
         res.status(500).json({ success: false, message: 'Failed to delete company' });
@@ -1451,6 +1504,7 @@ app.post('/companies/:companyId/folders', requireAuth, requireCompanyContext, re
         const defaultPermission = {
             id: String(Date.now()),
             folderPath: newFolderPath,
+            companyId: req.companyId,
             roleRestrictions: {
                 user: {
                     view: true,
@@ -1489,12 +1543,24 @@ app.post('/companies/:companyId/folders', requireAuth, requireCompanyContext, re
 
 // Permissions Management Endpoints
 
-// Get all permissions
-app.get('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+// Get all permissions for a company
+app.get('/companies/:companyId/permissions', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        
+        // Filter permissions by companyId
+        // Include permissions with matching companyId, or legacy permissions (no companyId) for systemAdmin
+        let filteredPermissions = permissions.filter(p => {
+            if (!p.companyId) {
+                // Legacy permissions - only show to systemAdmin
+                return requestingUser && requestingUser.role === 'systemAdmin';
+            }
+            return p.companyId === req.companyId;
+        });
+        
         res.json({
             success: true,
-            data: permissions
+            data: filteredPermissions
         });
     } catch (error) {
         logger.error('Error getting permissions:', error);
@@ -1507,14 +1573,14 @@ app.get('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (req
 });
 
 // Get permission for a specific folder
-app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+app.get(/^\/companies\/:companyId\/permissions\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         let folderPath = decodeURIComponent(req.params[0]);
         // Special handling for root directory
         if (folderPath === '__root__') {
             folderPath = '';
         }
-        const permission = permissions.find(p => p.folderPath === folderPath);
+        const permission = permissions.find(p => p.folderPath === folderPath && p.companyId === req.companyId);
         
         res.json({
             success: true,
@@ -1531,9 +1597,21 @@ app.get(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'admin
 });
 
 // Create or update permission for a folder
-app.post('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+app.post('/companies/:companyId/permissions', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         const { folderPath, roleRestrictions, branchRestrictions } = req.body;
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        
+        // Validate that user belongs to company (unless systemAdmin)
+        if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            const userCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            if (!userCompanyIds.includes(req.companyId)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You do not have access to this company'
+                });
+            }
+        }
         
         // Allow empty string for root directory, but not undefined/null
         if (folderPath === undefined || folderPath === null) {
@@ -1543,12 +1621,13 @@ app.post('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (re
             });
         }
         
-        // Check if permission already exists
-        const existingIndex = permissions.findIndex(p => p.folderPath === folderPath);
+        // Check if permission already exists for this company
+        const existingIndex = permissions.findIndex(p => p.folderPath === folderPath && p.companyId === req.companyId);
         
         const permission = {
             id: existingIndex !== -1 ? permissions[existingIndex].id : String(Date.now()),
             folderPath,
+            companyId: req.companyId,
             roleRestrictions: roleRestrictions || {},
             branchRestrictions: branchRestrictions || {},
             createdAt: existingIndex !== -1 ? permissions[existingIndex].createdAt : new Date().toISOString(),
@@ -1558,11 +1637,11 @@ app.post('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (re
         if (existingIndex !== -1) {
             // Update existing permission
             permissions[existingIndex] = permission;
-            logger.info(`Permission updated for folder: ${folderPath || 'root'}`);
+            logger.info(`Permission updated for folder: ${folderPath || 'root'} in company: ${req.companyId}`);
         } else {
             // Create new permission
             permissions.push(permission);
-            logger.info(`Permission created for folder: ${folderPath || 'root'}`);
+            logger.info(`Permission created for folder: ${folderPath || 'root'} in company: ${req.companyId}`);
         }
         
         savePermissions();
@@ -1583,7 +1662,7 @@ app.post('/permissions', requireAuth, requireRole(['systemAdmin', 'admin']), (re
 });
 
 // Delete permission for a folder
-app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'admin']), (req, res) => {
+app.delete(/^\/companies\/:companyId\/permissions\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
         let folderPath = decodeURIComponent(req.params[0]);
         // Special handling for root directory
@@ -1591,7 +1670,20 @@ app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'ad
             folderPath = '';
         }
         
-        const index = permissions.findIndex(p => p.folderPath === folderPath);
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        
+        // Validate that user belongs to company (unless systemAdmin)
+        if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            const userCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            if (!userCompanyIds.includes(req.companyId)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You do not have access to this company'
+                });
+            }
+        }
+        
+        const index = permissions.findIndex(p => p.folderPath === folderPath && p.companyId === req.companyId);
         
         if (index === -1) {
             return res.status(404).json({
@@ -1603,7 +1695,7 @@ app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'ad
         permissions.splice(index, 1);
         savePermissions();
         
-        logger.info(`Permission deleted for folder: ${folderPath || 'root'}`);
+        logger.info(`Permission deleted for folder: ${folderPath || 'root'} in company: ${req.companyId}`);
         
         res.json({
             success: true,
@@ -1621,7 +1713,30 @@ app.delete(/^\/permissions\/(.+)$/, requireAuth, requireRole(['systemAdmin', 'ad
 
 // Upload a file
 app.post('/companies/:companyId/files', requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
-    const upload = multer();
+    // Allowed file extensions and MIME types
+    const allowedExtensions = [
+        // Images
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'ico',
+        // Documents
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf',
+        // Archives
+        'zip', 'rar', '7z', 'tar', 'gz',
+        // Media
+        'mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm', 'flv', 'm4v',
+        'mp3', 'wav', 'flac', 'aac', 'ogg',
+        // Code
+        'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'json', 'xml',
+        // Other
+        'csv'
+    ];
+    
+    const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || '104857600', 10); // 100MB default
+    
+    const upload = multer({
+        limits: {
+            fileSize: maxFileSize
+        }
+    });
     
     upload.fields([
         { name: 'file', maxCount: 1 },
@@ -1629,6 +1744,12 @@ app.post('/companies/:companyId/files', requireAuth, requireCompanyContext, requ
     ])(req, res, (err) => {
         if (err) {
             logger.error('Multer error:', err);
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({
+                    success: false,
+                    message: `File size exceeds maximum allowed size (${maxFileSize / 1024 / 1024}MB)`
+                });
+            }
             return res.status(400).json({
                 success: false,
                 message: 'Upload failed',
@@ -1655,13 +1776,39 @@ app.post('/companies/:companyId/files', requireAuth, requireCompanyContext, requ
             }
             
             const file = req.files.file[0];
+            
+            // Validate file extension
+            const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+            if (!allowedExtensions.includes(ext)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `File type not allowed. Allowed extensions: ${allowedExtensions.join(', ')}`
+                });
+            }
+            
+            // Validate content-type if available
+            if (file.mimetype) {
+                const allowedMimeTypes = [
+                    'image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument',
+                    'application/vnd.ms-excel', 'application/vnd.ms-powerpoint', 'text/', 'video/', 'audio/',
+                    'application/zip', 'application/x-rar-compressed', 'application/json', 'application/xml'
+                ];
+                const isAllowed = allowedMimeTypes.some(type => file.mimetype.startsWith(type));
+                if (!isAllowed && !file.mimetype.includes('json')) {
+                    logger.warn(`Suspicious MIME type for extension ${ext}: ${file.mimetype}`);
+                }
+            }
+            
+            // Sanitize filename (already done in generateUniqueFilename, but ensure path separators are removed)
+            const sanitizedOriginalName = file.originalname.replace(/[/\\]/g, '_');
+            
             const destinationPath = path.join(UPLOADS_DIR, req.companyId, folderPathParam || '');
             
             // Ensure destination directory exists
             ensureDirectoryExists(destinationPath);
             
             // Generate unique filename (will add (1), (2), etc. if file exists)
-            const filename = generateUniqueFilename(file.originalname, destinationPath);
+            const filename = generateUniqueFilename(sanitizedOriginalName, destinationPath);
             const filePath = path.join(destinationPath, filename);
             
             // Save file
@@ -2005,8 +2152,60 @@ function extractYouTubeVideoId(url) {
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+// Serve static files with company-level guard and range support
+app.get('/uploads/:companyId/*', requireAuth, requireCompanyContext, (req, res) => {
+    try {
+        const filePath = req.params[0];
+        const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
+        
+        // Security: prevent directory traversal
+        if (filePath.includes('..')) {
+            return res.status(403).json({ success: false, message: 'Forbidden: Invalid path' });
+        }
+        
+        // Check if file exists
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ success: false, message: 'File not found' });
+        }
+        
+        const stats = fs.statSync(fullPath);
+        if (stats.isDirectory()) {
+            return res.status(400).json({ success: false, message: 'Path is a directory' });
+        }
+        
+        const fileSize = stats.size;
+        const contentType = mime.lookup(fullPath) || 'application/octet-stream';
+        
+        // Parse Range header for partial content
+        const range = req.headers.range;
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunksize = (end - start) + 1;
+            const file = fs.createReadStream(fullPath, { start, end });
+            const head = {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunksize,
+                'Content-Type': contentType,
+            };
+            res.writeHead(206, head);
+            file.pipe(res);
+        } else {
+            const head = {
+                'Content-Length': fileSize,
+                'Content-Type': contentType,
+                'Accept-Ranges': 'bytes',
+            };
+            res.writeHead(200, head);
+            fs.createReadStream(fullPath).pipe(res);
+        }
+    } catch (error) {
+        logger.error('Error serving file:', error);
+        res.status(500).json({ success: false, message: 'Failed to serve file' });
+    }
+});
 
 // 404 handler
 app.use((req, res) => {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Permission, Branch } from '../../types';
+import { getActiveCompanyId } from '../../utils';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -74,10 +75,15 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
   const fetchPermission = async () => {
     try {
       setLoading(true);
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected');
+        return;
+      }
       // For root directory (empty path), fetch using special identifier
       const url = folderPath 
-        ? `${API_BASE_URL}/permissions/${encodeURIComponent(folderPath)}`
-        : `${API_BASE_URL}/permissions/__root__`;
+        ? `${API_BASE_URL}/companies/${companyId}/permissions/${encodeURIComponent(folderPath)}`
+        : `${API_BASE_URL}/companies/${companyId}/permissions/__root__`;
       const response = await axios.get(url);
       
       if (response.data.success && response.data.data) {
@@ -143,8 +149,13 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
         }
       });
 
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected');
+        return;
+      }
       // Use empty string for root directory in the database
-      const response = await axios.post(`${API_BASE_URL}/permissions`, {
+      const response = await axios.post(`${API_BASE_URL}/companies/${companyId}/permissions`, {
         folderPath: folderPath || '',
         roleRestrictions,
         branchRestrictions: filteredBranchRestrictions
@@ -171,9 +182,14 @@ export const PermissionsModal: React.FC<PermissionsModalProps> = ({
       setLoading(true);
       setError(null);
 
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected');
+        return;
+      }
       // Use __root__ identifier for root directory in URL
       const pathToDelete = folderPath ? encodeURIComponent(folderPath) : '__root__';
-      const response = await axios.delete(`${API_BASE_URL}/permissions/${pathToDelete}`);
+      const response = await axios.delete(`${API_BASE_URL}/companies/${companyId}/permissions/${pathToDelete}`);
 
       if (response.data.success) {
         onClose();

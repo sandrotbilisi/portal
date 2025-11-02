@@ -729,6 +729,10 @@ export default function Home() {
   const handleLogout = async () => {
     try {
       await axios.post(`${API_BASE_URL}/auth/logout`);
+      // Clear localStorage on logout
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selectedCompanyId');
+      }
       router.replace('/login');
     } catch {}
   };
@@ -784,15 +788,43 @@ export default function Home() {
         <div className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-xl">E</span>
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-300 to-slate-300 bg-clip-text text-transparent">
-                  Exmony
-                </h1>
-                <p className="text-gray-500 text-sm font-medium">File Manager</p>
-              </div>
+              {selectedCompanyId && userCompanies.length > 0 && (() => {
+                const selectedCompany = userCompanies.find(c => c.id === selectedCompanyId);
+                const companyName = getCompanyName(selectedCompanyId, userCompanies);
+                const companyLogo = selectedCompany?.logo || process.env.NEXT_PUBLIC_COMPANY_LOGO;
+                const displayName = companyName || process.env.NEXT_PUBLIC_COMPANY_NAME || 'Exmony';
+                const displayInitial = companyLogo ? (
+                  <img src={companyLogo} alt={displayName} className="w-12 h-12 rounded-xl object-contain" />
+                ) : (
+                  <span className="text-white font-bold text-xl">{displayName.charAt(0).toUpperCase()}</span>
+                );
+                return (
+                  <>
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl flex items-center justify-center shadow-lg">
+                      {displayInitial}
+                    </div>
+                    <div>
+                      <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-300 to-slate-300 bg-clip-text text-transparent">
+                        {displayName}
+                      </h1>
+                      <p className="text-gray-500 text-sm font-medium">File Manager</p>
+                    </div>
+                  </>
+                );
+              })()}
+              {(!selectedCompanyId || userCompanies.length === 0) && (
+                <>
+                  <div className="w-12 h-12 bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-xl">{process.env.NEXT_PUBLIC_COMPANY_NAME?.charAt(0) || 'E'}</span>
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-300 to-slate-300 bg-clip-text text-transparent">
+                      {process.env.NEXT_PUBLIC_COMPANY_NAME || 'Exmony'}
+                    </h1>
+                    <p className="text-gray-500 text-sm font-medium">File Manager</p>
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex-1"></div>
             {/* Auth actions */}

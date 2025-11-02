@@ -87,10 +87,15 @@ export default function UsersPage() {
       await fetchUsers();
       await fetchBranches();
       
-      // Fetch companies only if user is systemAdmin
-      const me = await axios.get(`${API_BASE_URL}/auth/me`);
-      if (me.data?.data?.role === 'systemAdmin') {
-        await fetchCompanies();
+      // Fetch companies only if user is systemAdmin (avoid 403 noise)
+      try {
+        const me = await axios.get(`${API_BASE_URL}/auth/me`);
+        if (me.data?.data?.role === 'systemAdmin') {
+          await fetchCompanies();
+        }
+      } catch (err) {
+        // Silently handle errors - user may not have permission
+        console.log('Could not fetch user info for company access check');
       }
     };
     
@@ -331,11 +336,17 @@ export default function UsersPage() {
                   value={role} 
                   onChange={(e) => setRole(e.target.value as "systemAdmin" | "admin" | "user")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
+                  disabled={userRole !== 'systemAdmin'}
                 >
                   <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="systemAdmin">System Admin</option>
+                  {userRole === 'systemAdmin' && <option value="admin">Admin</option>}
+                  {userRole === 'systemAdmin' && <option value="systemAdmin">System Admin</option>}
                 </select>
+                {userRole !== 'systemAdmin' && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Only system administrators can assign roles other than 'user'
+                  </p>
+                )}
               </div>
             </div>
 
@@ -605,11 +616,17 @@ export default function UsersPage() {
                   value={editRole} 
                   onChange={(e) => setEditRole(e.target.value as "systemAdmin" | "admin" | "user")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
+                  disabled={userRole !== 'systemAdmin'}
                 >
                   <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="systemAdmin">System Admin</option>
+                  {userRole === 'systemAdmin' && <option value="admin">Admin</option>}
+                  {userRole === 'systemAdmin' && <option value="systemAdmin">System Admin</option>}
                 </select>
+                {userRole !== 'systemAdmin' && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Only system administrators can change user roles. Current role: {editingUser?.role || 'user'}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

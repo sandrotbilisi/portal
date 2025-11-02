@@ -22,6 +22,10 @@ export default function LoginPage() {
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
       const role = res.data?.data?.role;
+      // Clear localStorage on login to prevent carryover
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selectedCompanyId');
+      }
       if (role === 'systemAdmin' || role === 'admin') {
         // Redirect systemAdmin and admins to admin dashboard
         router.replace('/admin');
