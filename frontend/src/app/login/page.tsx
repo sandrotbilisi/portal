@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
+      const res = await axios.post(`${API_BASE_URL}/auth/login`, { username, password, company : process.env.NEXT_PUBLIC_COMPANY_ID });
       const role = res.data?.data?.role;
       // Clear localStorage on login to prevent carryover
       if (typeof window !== 'undefined') {
