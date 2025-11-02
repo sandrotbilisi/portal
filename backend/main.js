@@ -496,7 +496,7 @@ app.post('/auth/login', (req, res) => {
         
         let isInList = false
         
-        if(!user.role == "systemAdmin"){
+        if(user.role != "systemAdmin"){
 
         if ( user.companyIds ){
             user.companyIds.forEach(userCompany => {
