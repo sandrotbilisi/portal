@@ -335,6 +335,7 @@ app.use((req, res, next) => {
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
         'https://portal.exmony.ge',
+        'https://portal.digitalcurrency.ge',
         'https://home-server.tail7b1d07.ts.net'
     ];
     
