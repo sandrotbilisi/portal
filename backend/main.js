@@ -325,28 +325,9 @@ function clearAuthCookie(res) {
     res.clearCookie('auth');
 }
 
-// CORS for credentials (allow localhost for development)
+// CORS configuration
 app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    // Allow specific localhost origins for development
-    const allowedOrigins = [
-        'http://localhost:3000',
-        'http://localhost:3001', 
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001',
-        'https://home-server.tail7b1d07.ts.net', // Your backend domain
-        'https://localhost:3000',
-        "https://portal.exmony.ge"
-    ];
-    
-    if (allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin);
-    } else {
-        res.header('Access-Control-Allow-Origin', '*');
-    }
-    
-    res.header('Vary', 'Origin');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     if (req.method === 'OPTIONS') {
