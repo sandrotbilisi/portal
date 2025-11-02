@@ -498,6 +498,7 @@ app.post('/auth/login', (req, res) => {
 
         if ( user.companyIds ){
             user.companyIds.forEach(userCompany => {
+                console.log('comparing : ', userCompany, company)
                 if (userCompany == company){
                     isInList == true;
                 }
