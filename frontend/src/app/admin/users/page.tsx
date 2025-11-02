@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { User, Branch } from "@/types";
+import { User, Branch, Company } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -10,6 +10,7 @@ export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
@@ -19,6 +20,11 @@ export default function UsersPage() {
   const [lastname, setLastname] = useState("");
   const [personalNumber, setPersonalNumber] = useState("");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [myCompanyIds, setMyCompanyIds] = useState<string[]>([]);
+  const [myCompanies, setMyCompanies] = useState<Company[]>([]);
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("");
   const [creating, setCreating] = useState(false);
   
   // Edit states
@@ -29,6 +35,7 @@ export default function UsersPage() {
   const [editLastname, setEditLastname] = useState("");
   const [editPersonalNumber, setEditPersonalNumber] = useState("");
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
+  const [editCompanyIds, setEditCompanyIds] = useState<string[]>([]);
   const [editRole, setEditRole] = useState<"systemAdmin" | "admin" | "user">("user");
   const [updating, setUpdating] = useState(false);
 
@@ -40,6 +47,12 @@ export default function UsersPage() {
       const me = await axios.get(`${API_BASE_URL}/auth/me`);
       if (!me.data?.data) return router.replace('/login');
       if (me.data.data.role !== 'admin' && me.data.data.role !== 'systemAdmin') return router.replace('/unauthorized');
+      
+      // Store user role and companyIds from /auth/me
+      setUserRole(me.data.data.role);
+      setMyCompanyIds(me.data.data.companyIds || []);
+      setMyCompanies(me.data.data.companies || []);
+      
       const res = await axios.get(`${API_BASE_URL}/users`);
       setUsers(res.data.data || []);
     } catch (err: any) {
@@ -59,9 +72,29 @@ export default function UsersPage() {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/companies`);
+      const companiesData = res.data.data || [];
+      setCompanies(companiesData);
+    } catch (err: any) {
+      console.error('Failed to load companies:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchUsers();
-    fetchBranches();
+    const initialize = async () => {
+      await fetchUsers();
+      await fetchBranches();
+      
+      // Fetch companies only if user is systemAdmin
+      const me = await axios.get(`${API_BASE_URL}/auth/me`);
+      if (me.data?.data?.role === 'systemAdmin') {
+        await fetchCompanies();
+      }
+    };
+    
+    initialize();
   }, []);
 
   const createUser = async (e: React.FormEvent) => {
@@ -73,8 +106,20 @@ export default function UsersPage() {
       return;
     }
     
+    // For systemAdmin, validate company selection
+    if (userRole === 'systemAdmin' && companyIds.length === 0) {
+      setError('Please select at least one company');
+      return;
+    }
+    
     setCreating(true);
     try {
+      // Determine companyIds to send
+      let userCompanyIds = companyIds;
+      if (userRole !== 'systemAdmin') {
+        userCompanyIds = myCompanyIds;
+      }
+      
       await axios.post(`${API_BASE_URL}/users`, { 
         username, 
         password, 
@@ -82,7 +127,8 @@ export default function UsersPage() {
         name,
         lastname,
         personalNumber,
-        branchIds
+        branchIds,
+        companyIds: userCompanyIds
       });
       setUsername("");
       setPassword("");
@@ -91,6 +137,7 @@ export default function UsersPage() {
       setLastname("");
       setPersonalNumber("");
       setBranchIds([]);
+      setCompanyIds([]);
       await fetchUsers();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create user');
@@ -106,6 +153,7 @@ export default function UsersPage() {
     setEditLastname(user.lastname);
     setEditPersonalNumber(user.personalNumber);
     setEditBranchIds(user.branchIds || []);
+    setEditCompanyIds(user.companyIds || []);
     setEditRole(user.role);
     setIsEditModalOpen(true);
     setError(null);
@@ -119,6 +167,7 @@ export default function UsersPage() {
     setEditLastname("");
     setEditPersonalNumber("");
     setEditBranchIds([]);
+    setEditCompanyIds([]);
     setEditRole("user");
     setError(null);
   };
@@ -135,13 +184,20 @@ export default function UsersPage() {
     setError(null);
     setUpdating(true);
     try {
+      // Determine companyIds to send
+      let userCompanyIds = editCompanyIds;
+      if (userRole !== 'systemAdmin') {
+        userCompanyIds = myCompanyIds;
+      }
+      
       await axios.put(`${API_BASE_URL}/users/${editingUser.id}`, {
         username: editUsername,
         role: editRole,
         name: editName,
         lastname: editLastname,
         personalNumber: editPersonalNumber,
-        branchIds: editBranchIds
+        branchIds: editBranchIds,
+        companyIds: userCompanyIds
       });
       closeEditModal();
       await fetchUsers();
@@ -257,7 +313,7 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-300 mb-2">Password *</label>
                 <input 
@@ -281,6 +337,9 @@ export default function UsersPage() {
                   <option value="systemAdmin">System Admin</option>
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-300 mb-2">Branches * (select multiple)</label>
                 <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
@@ -310,20 +369,83 @@ export default function UsersPage() {
                   <p className="text-sm text-gray-400 mt-2">{branchIds.length} branch(es) selected</p>
                 )}
               </div>
+              {userRole === 'systemAdmin' && (
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Companies * (select multiple)</label>
+                  <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
+                    {companies.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No companies available</p>
+                    ) : (
+                      companies.map(company => (
+                        <label key={company.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={companyIds.includes(company.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCompanyIds([...companyIds, company.id]);
+                              } else {
+                                setCompanyIds(companyIds.filter(id => id !== company.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-white text-sm">{company.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {companyIds.length > 0 && (
+                    <p className="text-sm text-gray-400 mt-2">{companyIds.length} compan(ies) selected</p>
+                  )}
+                </div>
+              )}
+              {userRole !== 'systemAdmin' && myCompanies.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Companies</label>
+                  <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {myCompanies.map(company => (
+                        <span key={company.id} className="px-2 py-1 bg-gray-600/40 text-gray-200 rounded text-xs">
+                          {company.name}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Users will be assigned to your companies automatically</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button 
               type="submit" 
-              disabled={creating || branches.length === 0} 
+              disabled={creating || branches.length === 0 || (userRole === 'systemAdmin' && companyIds.length === 0)} 
               className="w-full px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {creating ? 'Creating...' : branches.length === 0 ? 'Create a branch first' : 'Create User'}
+              {creating ? 'Creating...' : branches.length === 0 ? 'Create a branch first' : (userRole === 'systemAdmin' && companyIds.length === 0) ? 'Select at least one company' : 'Create User'}
             </button>
           </form>
         </div>
 
         <div className="bg-gray-800/40 border border-gray-700/30 rounded-2xl p-6">
-          <h2 className="text-white font-medium mb-4">Existing users</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white font-medium">Existing users</h2>
+            {userRole === 'systemAdmin' && companies.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-300">Filter by Company:</label>
+                <select
+                  value={selectedCompanyFilter}
+                  onChange={(e) => setSelectedCompanyFilter(e.target.value)}
+                  className="px-3 py-1 bg-gray-700/50 border border-gray-600/30 rounded-lg text-white text-sm"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           {loading ? (
             <div className="text-gray-400">Loading...</div>
           ) : users.length === 0 ? (
@@ -339,12 +461,18 @@ export default function UsersPage() {
                     <th className="py-3 pr-4">Username</th>
                     <th className="py-3 pr-4">Personal Number</th>
                     <th className="py-3 pr-4">Branches</th>
+                    <th className="py-3 pr-4">Companies</th>
                     <th className="py-3 pr-4">Role</th>
                     <th className="py-3 pr-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {users.filter(u => {
+                    if (selectedCompanyFilter && userRole === 'systemAdmin') {
+                      return u.companyIds && u.companyIds.includes(selectedCompanyFilter);
+                    }
+                    return true;
+                  }).map(u => (
                     <tr key={u.id} className="border-t border-gray-700/40 hover:bg-gray-700/20 transition-colors">
                       <td className="py-3 pr-4">{u.id}</td>
                       <td className="py-3 pr-4">{u.name || '-'}</td>
@@ -357,6 +485,19 @@ export default function UsersPage() {
                             u.branches.map(branch => (
                               <span key={branch.id} className="px-2 py-1 bg-gray-600/40 text-gray-200 rounded text-xs">
                                 {branch.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <div className="flex flex-wrap gap-1">
+                          {u.companies && u.companies.length > 0 ? (
+                            u.companies.map(company => (
+                              <span key={company.id} className="px-2 py-1 bg-indigo-600/40 text-indigo-200 rounded text-xs">
+                                {company.name}
                               </span>
                             ))
                           ) : (
@@ -471,33 +612,81 @@ export default function UsersPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-300 mb-2">Branches * (select multiple)</label>
-                <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
-                  {branches.length === 0 ? (
-                    <p className="text-gray-400 text-sm">No branches available</p>
-                  ) : (
-                    branches.map(branch => (
-                      <label key={branch.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={editBranchIds.includes(branch.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditBranchIds([...editBranchIds, branch.id]);
-                            } else {
-                              setEditBranchIds(editBranchIds.filter(id => id !== branch.id));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-white text-sm">{branch.name} - {branch.location}</span>
-                      </label>
-                    ))
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Branches * (select multiple)</label>
+                  <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
+                    {branches.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No branches available</p>
+                    ) : (
+                      branches.map(branch => (
+                        <label key={branch.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editBranchIds.includes(branch.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditBranchIds([...editBranchIds, branch.id]);
+                              } else {
+                                setEditBranchIds(editBranchIds.filter(id => id !== branch.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-white text-sm">{branch.name} - {branch.location}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {editBranchIds.length > 0 && (
+                    <p className="text-sm text-gray-400 mt-2">{editBranchIds.length} branch(es) selected</p>
                   )}
                 </div>
-                {editBranchIds.length > 0 && (
-                  <p className="text-sm text-gray-400 mt-2">{editBranchIds.length} branch(es) selected</p>
+                {userRole === 'systemAdmin' && (
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-2">Companies * (select multiple)</label>
+                    <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3 max-h-40 overflow-y-auto">
+                      {companies.length === 0 ? (
+                        <p className="text-gray-400 text-sm">No companies available</p>
+                      ) : (
+                        companies.map(company => (
+                          <label key={company.id} className="flex items-center space-x-3 py-2 hover:bg-gray-600/30 rounded px-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editCompanyIds.includes(company.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditCompanyIds([...editCompanyIds, company.id]);
+                                } else {
+                                  setEditCompanyIds(editCompanyIds.filter(id => id !== company.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-white text-sm">{company.name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                    {editCompanyIds.length > 0 && (
+                      <p className="text-sm text-gray-400 mt-2">{editCompanyIds.length} compan(ies) selected</p>
+                    )}
+                  </div>
+                )}
+                {userRole !== 'systemAdmin' && editingUser && editingUser.companies && editingUser.companies.length > 0 && (
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-2">Companies</label>
+                    <div className="bg-gray-700/50 border border-gray-600/30 rounded-xl p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {editingUser.companies.map(company => (
+                          <span key={company.id} className="px-2 py-1 bg-gray-600/40 text-gray-200 rounded text-xs">
+                            {company.name}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">Company assignment managed by systemAdmin</p>
+                    </div>
+                  </div>
                 )}
               </div>
 

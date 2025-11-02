@@ -575,8 +575,16 @@ app.post('/users', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res
         
         // Handle companyIds array
         let userCompanyIds = [];
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        
         if (Array.isArray(companyIds) && companyIds.length > 0) {
             userCompanyIds = companyIds;
+        } else if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            // For non-systemAdmin, default to requester's companies
+            userCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            if (userCompanyIds.length === 0) {
+                return res.status(400).json({ success: false, message: 'Requester has no companies assigned' });
+            }
         } else {
             return res.status(400).json({ success: false, message: 'At least one company is required' });
         }
@@ -597,7 +605,6 @@ app.post('/users', requireAuth, requireRole(['systemAdmin', 'admin']), (req, res
         }
         
         // Implement role-based company assignment rules
-        const requestingUser = users.find(u => u.id === req.user.sub);
         if (requestingUser && requestingUser.role !== 'systemAdmin') {
             const requestingUserCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
             const invalidCompanies = userCompanyIds.filter(cId => !requestingUserCompanyIds.includes(cId));
@@ -966,8 +973,16 @@ app.put('/users/:id', requireAuth, requireRole(['systemAdmin', 'admin']), (req, 
         
         // Handle companyIds array
         let userCompanyIds = [];
+        const requestingUser = users.find(u => u.id === req.user.sub);
+        
         if (Array.isArray(companyIds) && companyIds.length > 0) {
             userCompanyIds = companyIds;
+        } else if (requestingUser && requestingUser.role !== 'systemAdmin') {
+            // For non-systemAdmin, default to requester's companies
+            userCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
+            if (userCompanyIds.length === 0) {
+                return res.status(400).json({ success: false, message: 'Requester has no companies assigned' });
+            }
         } else {
             return res.status(400).json({ success: false, message: 'At least one company is required' });
         }
@@ -989,7 +1004,6 @@ app.put('/users/:id', requireAuth, requireRole(['systemAdmin', 'admin']), (req, 
         }
         
         // Implement role-based company assignment rules
-        const requestingUser = users.find(u => u.id === req.user.sub);
         if (requestingUser && requestingUser.role !== 'systemAdmin') {
             const requestingUserCompanyIds = Array.isArray(requestingUser.companyIds) ? requestingUser.companyIds : [];
             const invalidCompanies = userCompanyIds.filter(cId => !requestingUserCompanyIds.includes(cId));
