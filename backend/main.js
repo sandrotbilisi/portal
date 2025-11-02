@@ -500,7 +500,7 @@ app.post('/auth/login', (req, res) => {
             user.companyIds.forEach(userCompany => {
                 console.log('comparing : ', userCompany == company)
                 if (userCompany == company){
-                    isInList == true;
+                    isInList = true;
                 }
             });
         } else {
