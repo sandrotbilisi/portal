@@ -495,6 +495,8 @@ app.post('/auth/login', (req, res) => {
         if (!ok) return res.status(401).json({ success: false, message: 'Invalid credentials' });
         
         let isInList = false
+        
+        if(!user.role == "systemAdmin"){
 
         if ( user.companyIds ){
             user.companyIds.forEach(userCompany => {
@@ -511,6 +513,7 @@ app.post('/auth/login', (req, res) => {
         if (isInList == false){
             return res.status(401).json({ success: false, message: 'You are trying to log in into company you dont have access too' });
         }
+    }
 
 
         const token = generateToken(user);
