@@ -2151,9 +2151,13 @@ function extractYouTubeVideoId(url) {
 }
 
 // Serve static files with company-level guard and range support
-app.get('/uploads/:companyId/*', requireAuth, requireCompanyContext, (req, res) => {
+app.get(/^\/uploads\/([^/]+)\/(.+)$/, requireAuth, (req, res, next) => {
+    // Extract companyId from regex params and set it for requireCompanyContext
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, (req, res) => {
     try {
-        const filePath = req.params[0];
+        const filePath = req.params[1];
         const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
         
         // Security: prevent directory traversal
