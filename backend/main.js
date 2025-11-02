@@ -484,14 +484,33 @@ function requireCompanyContext(req, res, next) {
 // Auth routes
 app.post('/auth/login', (req, res) => {
     try {
-        const { username, password } = req.body || {};
+        const { username, password, company } = req.body || {};
         if (!username || !password) {
             return res.status(400).json({ success: false, message: 'Username and password required' });
         }
         const user = findUserByUsername(username);
+        
         if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
         const ok = bcrypt.compareSync(password, user.passwordHash);
         if (!ok) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        
+        let isInList = false
+
+        if ( user.companyIds ){
+            user.companyIds.forEach(userCompany => {
+                if (userCompany == company){
+                    isInList == true;
+                }
+            });
+        } else {
+            return res.status(401).json({ success: false, message: 'This user doesnt work at any company' });
+        }
+
+        if (!isInList){
+            return res.status(401).json({ success: false, message: 'You are trying to log in into company you dont have access too' });
+        }
+
+
         const token = generateToken(user);
         setAuthCookie(res, token);
         return res.json({ 
