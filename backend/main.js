@@ -1409,10 +1409,13 @@ app.get('/companies/:companyId/folders', requireAuth, requireCompanyContext, req
 });
 
 // List items in a specific folder (handles nested paths)
-app.get(/^\/companies\/:companyId\/folders\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
+app.get(/^\/companies\/([^/]+)\/folders\/(.+)$/, requireAuth, (req, res, next) => {
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
         // Get the full path from the URL
-        const fullUrlPath = req.params[0];
+        const fullUrlPath = req.params[1];
         const fullPath = path.join(UPLOADS_DIR, req.companyId, fullUrlPath);
         
         // Check if user has permission to view this folder
@@ -1596,9 +1599,12 @@ app.get('/companies/:companyId/permissions', requireAuth, requireCompanyContext,
 });
 
 // Get permission for a specific folder
-app.get(/^\/companies\/:companyId\/permissions\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
+app.get(/^\/companies\/([^/]+)\/permissions\/(.+)$/, requireAuth, (req, res, next) => {
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
-        let folderPath = decodeURIComponent(req.params[0]);
+        let folderPath = decodeURIComponent(req.params[1]);
         // Special handling for root directory
         if (folderPath === '__root__') {
             folderPath = '';
@@ -1685,9 +1691,12 @@ app.post('/companies/:companyId/permissions', requireAuth, requireCompanyContext
 });
 
 // Delete permission for a folder
-app.delete(/^\/companies\/:companyId\/permissions\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
+app.delete(/^\/companies\/([^/]+)\/permissions\/(.+)$/, requireAuth, (req, res, next) => {
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, requireRole(['systemAdmin', 'admin']), (req, res) => {
     try {
-        let folderPath = decodeURIComponent(req.params[0]);
+        let folderPath = decodeURIComponent(req.params[1]);
         // Special handling for root directory
         if (folderPath === '__root__') {
             folderPath = '';
@@ -1877,9 +1886,12 @@ app.use((error, req, res, next) => {
 });
 
 // Delete a file or folder
-app.delete(/^\/companies\/:companyId\/files\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
+app.delete(/^\/companies\/([^/]+)\/files\/(.+)$/, requireAuth, (req, res, next) => {
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
-        const filePath = req.params[0];
+        const filePath = req.params[1];
         const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
         
         // Get the folder path (parent directory)
@@ -1928,9 +1940,12 @@ app.delete(/^\/companies\/:companyId\/files\/(.+)$/, requireAuth, requireCompany
 });
 
 // Rename a file or folder
-app.put(/^\/companies\/:companyId\/files\/(.+)$/, requireAuth, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
+app.put(/^\/companies\/([^/]+)\/files\/(.+)$/, requireAuth, (req, res, next) => {
+    req.params.companyId = req.params[0];
+    next();
+}, requireCompanyContext, requireRole(['systemAdmin', 'admin', 'user']), (req, res) => {
     try {
-        const filePath = req.params[0];
+        const filePath = req.params[1];
         const { newName, updateYouTubeTitle, newTitle } = req.body;
         
         const fullPath = path.join(UPLOADS_DIR, req.companyId, filePath);
