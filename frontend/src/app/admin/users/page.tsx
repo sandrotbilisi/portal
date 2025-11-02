@@ -14,7 +14,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
+  const [role, setRole] = useState<"systemAdmin" | "admin" | "user">("user");
   const [name, setName] = useState("");
   const [lastname, setLastname] = useState("");
   const [personalNumber, setPersonalNumber] = useState("");
@@ -29,7 +29,7 @@ export default function UsersPage() {
   const [editLastname, setEditLastname] = useState("");
   const [editPersonalNumber, setEditPersonalNumber] = useState("");
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
-  const [editRole, setEditRole] = useState<"user" | "admin">("user");
+  const [editRole, setEditRole] = useState<"systemAdmin" | "admin" | "user">("user");
   const [updating, setUpdating] = useState(false);
 
   axios.defaults.withCredentials = true;
@@ -273,11 +273,12 @@ export default function UsersPage() {
                 <label className="block text-sm text-gray-300 mb-2">Role *</label>
                 <select 
                   value={role} 
-                  onChange={(e) => setRole(e.target.value as any)} 
+                  onChange={(e) => setRole(e.target.value as "systemAdmin" | "admin" | "user")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
+                  <option value="systemAdmin">System Admin</option>
                 </select>
               </div>
               <div>
@@ -461,11 +462,12 @@ export default function UsersPage() {
                 <label className="block text-sm text-gray-300 mb-2">Role *</label>
                 <select 
                   value={editRole} 
-                  onChange={(e) => setEditRole(e.target.value as any)} 
+                  onChange={(e) => setEditRole(e.target.value as "systemAdmin" | "admin" | "user")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
+                  <option value="systemAdmin">System Admin</option>
                 </select>
               </div>
 
