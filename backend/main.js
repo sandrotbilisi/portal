@@ -327,7 +327,24 @@ function clearAuthCookie(res) {
 
 // CORS configuration
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    // Allow specific origins including portal.exmony.ge
+    const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:3001', 
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
+        'https://portal.exmony.ge',
+        'https://home-server.tail7b1d07.ts.net'
+    ];
+    
+    if (origin && allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+        res.header('Access-Control-Allow-Origin', '*');
+    }
+    
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     if (req.method === 'OPTIONS') {
