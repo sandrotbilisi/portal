@@ -144,6 +144,14 @@ export const buildFileUrl = (filePath: string): string => {
   return `${API_BASE_URL}/uploads/${filePath}`;
 };
 
+// Company-aware file URL builder
+export const buildCompanyFileUrl = (companyId: string, filePath: string): string => {
+  if (!companyId || companyId.trim() === '') {
+    throw new Error('Company ID is required');
+  }
+  return `${API_BASE_URL}/uploads/${companyId}/${filePath}`;
+};
+
 // Company-aware API URL builder
 export const buildCompanyApiUrl = (companyId: string, endpoint: string, path?: string): string => {
   if (!companyId || companyId.trim() === '') {

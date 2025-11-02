@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { DraggableFileList } from "../../components/file-manager/DraggableFileList";
 import { PermissionsModal } from "../../components/modals/PermissionsModal";
 import { Company } from "@/types";
-import { getCompanyName } from "@/utils";
+import { getCompanyName, getActiveCompanyId } from "@/utils";
 
 // API Configuration - Change this to easily switch between environments
 // Examples:
@@ -81,6 +81,11 @@ export default function Home() {
     try {
       setLoading(true);
       const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+        setLoading(false);
+        return;
+      }
       const url = currentPath 
         ? `${API_BASE_URL}/companies/${companyId}/folders/${currentPath}` 
         : `${API_BASE_URL}/companies/${companyId}/folders`;
@@ -109,8 +114,19 @@ export default function Home() {
     }
   };
 
+  // Reset navigation state when company changes
   useEffect(() => {
-    fetchFolders();
+    if (selectedCompanyId) {
+      setCurrentPath("");
+      setPathHistory([]);
+    }
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    const companyId = selectedCompanyId || process.env.NEXT_PUBLIC_COMPANY_ID;
+    if (companyId) {
+      fetchFolders();
+    }
   }, [currentPath, selectedCompanyId]);
 
   useEffect(() => {
@@ -151,17 +167,6 @@ export default function Home() {
     fetchUserInfo();
   }, []);
 
-  // Helper function to get active company ID
-  const getActiveCompanyId = (): string => {
-    if (selectedCompanyId) {
-      return selectedCompanyId;
-    }
-    const companyId = process.env.NEXT_PUBLIC_COMPANY_ID;
-    if (!companyId) {
-      throw new Error('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
-    }
-    return companyId;
-  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -260,10 +265,19 @@ export default function Home() {
     if (folder.type === 'folder') {
       handleFolderClick(folder.name);
     } else if (isImageFile(folder.name)) {
-      const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
-      const companyId = getActiveCompanyId();
-      setSelectedImage(`${API_BASE_URL}/uploads/${companyId}/${imagePath}`);
-      setIsImageModalOpen(true);
+      try {
+        const imagePath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
+        const companyId = getActiveCompanyId();
+        if (!companyId) {
+          setError('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+          return;
+        }
+        setSelectedImage(`${API_BASE_URL}/uploads/${companyId}/${imagePath}`);
+        setIsImageModalOpen(true);
+      } catch (err: any) {
+        setError(err.message || 'Failed to get company ID');
+        return;
+      }
     } else if (folder.name.endsWith('.json') && folder.type === 'youtube') {
       // Handle YouTube video files
       openVideoModal(folder);
@@ -596,10 +610,19 @@ export default function Home() {
   };
 
   const openPdfModal = (fileName: string) => {
-    const pdfPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const companyId = getActiveCompanyId();
-    setSelectedPdf(`${API_BASE_URL}/uploads/${companyId}/${pdfPath}`);
-    setIsPdfModalOpen(true);
+    try {
+      const pdfPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+        return;
+      }
+      setSelectedPdf(`${API_BASE_URL}/uploads/${companyId}/${pdfPath}`);
+      setIsPdfModalOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to get company ID');
+      return;
+    }
   };
 
   const closePdfModal = () => {
@@ -608,10 +631,19 @@ export default function Home() {
   };
 
   const openVideoFileModal = (fileName: string) => {
-    const videoPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const companyId = getActiveCompanyId();
-    setSelectedVideoFile(`${API_BASE_URL}/uploads/${companyId}/${videoPath}`);
-    setIsVideoFileModalOpen(true);
+    try {
+      const videoPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+        return;
+      }
+      setSelectedVideoFile(`${API_BASE_URL}/uploads/${companyId}/${videoPath}`);
+      setIsVideoFileModalOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to get company ID');
+      return;
+    }
   };
 
   const closeVideoFileModal = () => {
@@ -649,12 +681,21 @@ export default function Home() {
   };
 
   const openDocumentModal = (fileName: string) => {
-    const docPath = currentPath ? `${currentPath}/${fileName}` : fileName;
-    const companyId = getActiveCompanyId();
-    const fullUrl = `${API_BASE_URL}/uploads/${companyId}/${docPath}`;
-    setSelectedDocument(fullUrl);
-    setDocumentType(getDocumentType(fileName));
-    setIsDocumentModalOpen(true);
+    try {
+      const docPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+      const companyId = getActiveCompanyId();
+      if (!companyId) {
+        setError('No company selected. Please select a company or configure NEXT_PUBLIC_COMPANY_ID.');
+        return;
+      }
+      const fullUrl = `${API_BASE_URL}/uploads/${companyId}/${docPath}`;
+      setSelectedDocument(fullUrl);
+      setDocumentType(getDocumentType(fileName));
+      setIsDocumentModalOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to get company ID');
+      return;
+    }
   };
 
   const closeDocumentModal = () => {

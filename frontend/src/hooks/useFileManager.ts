@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Folder, FileManagerState } from '../types';
-import { buildApiUrl, API_BASE_URL } from '../utils';
+import { buildApiUrl, API_BASE_URL, buildCompanyApiUrl } from '../utils';
 
 export const useFileManager = (companyId: string) => {
   const [state, setState] = useState<FileManagerState>({
@@ -14,14 +14,6 @@ export const useFileManager = (companyId: string) => {
     pathHistory: []
   });
 
-  // Local helper to build company-scoped API URLs
-  const buildCompanyApiUrl = (endpoint: string, path?: string): string => {
-    if (!companyId || companyId.trim() === '') {
-      throw new Error('Company ID is required');
-    }
-    const baseUrl = `${API_BASE_URL}/companies/${companyId}/${endpoint}`;
-    return path ? `${baseUrl}/${path}` : baseUrl;
-  };
 
   const fetchFolders = async (path?: string) => {
     try {
@@ -29,7 +21,7 @@ export const useFileManager = (companyId: string) => {
         throw new Error('Company ID is required');
       }
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const url = buildCompanyApiUrl('folders', path);
+      const url = buildCompanyApiUrl(companyId, 'folders', path);
       const response = await axios.get(url);
       
       if (response.data.success) {
@@ -59,7 +51,7 @@ export const useFileManager = (companyId: string) => {
         formData.append('file', file);
         formData.append('folderPath', state.currentPath);
 
-        const response = await axios.post(buildCompanyApiUrl('files'), formData, {
+        const response = await axios.post(buildCompanyApiUrl(companyId, 'files'), formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
@@ -89,7 +81,7 @@ export const useFileManager = (companyId: string) => {
       if (!companyId) {
         throw new Error('Company ID is required');
       }
-      const response = await axios.post(buildCompanyApiUrl('folders'), {
+      const response = await axios.post(buildCompanyApiUrl(companyId, 'folders'), {
         folderName: folderName.trim(),
         folderPath: state.currentPath
       });
@@ -115,7 +107,7 @@ export const useFileManager = (companyId: string) => {
         throw new Error('Company ID is required');
       }
       const filePath = state.currentPath ? `${state.currentPath}/${item.name}` : item.name;
-      const response = await axios.put(buildCompanyApiUrl('files', filePath), {
+      const response = await axios.put(buildCompanyApiUrl(companyId, 'files', filePath), {
         newName: newName.trim()
       });
 
@@ -140,7 +132,7 @@ export const useFileManager = (companyId: string) => {
         throw new Error('Company ID is required');
       }
       const filePath = state.currentPath ? `${state.currentPath}/${item.name}` : item.name;
-      const response = await axios.delete(buildCompanyApiUrl('files', filePath));
+      const response = await axios.delete(buildCompanyApiUrl(companyId, 'files', filePath));
 
       if (response.data.success) {
         await fetchFolders(state.currentPath);
@@ -162,7 +154,7 @@ export const useFileManager = (companyId: string) => {
       if (!companyId) {
         throw new Error('Company ID is required');
       }
-      const response = await fetch(buildCompanyApiUrl('youtube'), {
+      const response = await fetch(buildCompanyApiUrl(companyId, 'youtube'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
