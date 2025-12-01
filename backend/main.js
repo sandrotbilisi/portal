@@ -392,8 +392,13 @@ const allowedIPs = [
 
 app.set('trust proxy', true); // if behind a proxy
 
-// Middleware to block disallowed IPs
+// Middleware to block disallowed IPs (skip for login and well-known routes)
 app.use((req, res, next) => {
+    // Allow login and well-known routes to bypass IP check (needed for authentication)
+    if (req.path === '/auth/login' || req.path.startsWith('/.well-known/')) {
+        return next();
+    }
+    
     const clientIP = req.ip || req.connection.remoteAddress;
     console.log('Client IP:', clientIP);
 
@@ -426,6 +431,26 @@ function requireAuth(req, res, next) {
         if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
         const payload = jwt.verify(token, JWT_SECRET);
         req.user = payload;
+        
+        // Check IP for authenticated users (skip for accountants)
+        if (req.user.role !== 'accountant') {
+            const clientIP = req.ip || req.connection.remoteAddress;
+            if (!allowedIPs.includes(clientIP)) {
+                console.log('Forbidden: IP not allowed', clientIP);
+                
+                // send Discord webhook here
+                const webhookUrl = 'https://discord.com/api/webhooks/1426985073839968377/IlC-2HpnBzfNIzk9_AA6TFV-h2Xh2T4ZPeWBZLsKhV_cuFW4mm3W4jT3WSh8bR3slf8W';
+                
+                fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: `Forbidden access attempt from IP: ${clientIP}` })
+                }).catch(err => console.error('Webhook error:', err));
+            
+                return res.status(403).json({ success: false, message: 'Forbidden: IP not allowed' });
+            }
+        }
+        
         next();
     } catch (err) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -455,8 +480,8 @@ function requireCompanyContext(req, res, next) {
             return res.status(404).json({ success: false, message: 'Company not found' });
         }
         
-        // For non-systemAdmin users, validate company membership
-        if (req.user.role !== 'systemAdmin') {
+        // For non-systemAdmin and non-accountant users, validate company membership
+        if (req.user.role !== 'systemAdmin' && req.user.role !== 'accountant') {
             const user = users.find(u => u.id === req.user.sub);
             
             if (!user) {
@@ -496,7 +521,7 @@ app.post('/auth/login', (req, res) => {
         
         let isInList = false
         
-        if(user.role != "systemAdmin"){
+        if(user.role != "systemAdmin" && user.role != "accountant"){
 
         if ( user.companyIds ){
             user.companyIds.forEach(userCompany => {
