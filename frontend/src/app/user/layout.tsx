@@ -23,8 +23,8 @@ export default function UserLayout({
         const res = await axios.get(`${API_BASE_URL}/auth/me`);
         if (res.data?.data) {
           const info: MeResponse = res.data.data;
-          // Allow users, admins, and systemAdmins to access user section
-          if (info.role === 'user' || info.role === 'admin' || info.role === 'systemAdmin') {
+          // Allow users, accountants, admins, and systemAdmins to access user section
+          if (info.role === 'user' || info.role === 'accountant' || info.role === 'admin' || info.role === 'systemAdmin') {
             setAuthorized(true);
           } else {
             router.replace('/unauthorized');

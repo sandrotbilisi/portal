@@ -15,7 +15,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"systemAdmin" | "admin" | "user">("user");
+  const [role, setRole] = useState<"systemAdmin" | "admin" | "user" | "accountant">("user");
   const [name, setName] = useState("");
   const [lastname, setLastname] = useState("");
   const [personalNumber, setPersonalNumber] = useState("");
@@ -36,7 +36,7 @@ export default function UsersPage() {
   const [editPersonalNumber, setEditPersonalNumber] = useState("");
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
   const [editCompanyIds, setEditCompanyIds] = useState<string[]>([]);
-  const [editRole, setEditRole] = useState<"systemAdmin" | "admin" | "user">("user");
+  const [editRole, setEditRole] = useState<"systemAdmin" | "admin" | "user" | "accountant">("user");
   const [updating, setUpdating] = useState(false);
 
   axios.defaults.withCredentials = true;
@@ -334,12 +334,13 @@ export default function UsersPage() {
                 <label className="block text-sm text-gray-300 mb-2">Role *</label>
                 <select 
                   value={role} 
-                  onChange={(e) => setRole(e.target.value as "systemAdmin" | "admin" | "user")} 
+                  onChange={(e) => setRole(e.target.value as "systemAdmin" | "admin" | "user" | "accountant")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
                   disabled={userRole !== 'systemAdmin'}
                 >
                   <option value="user">User</option>
                   {userRole === 'systemAdmin' && <option value="admin">Admin</option>}
+                  {userRole === 'systemAdmin' && <option value="accountant">Accountant</option>}
                   {userRole === 'systemAdmin' && <option value="systemAdmin">System Admin</option>}
                 </select>
                 {userRole !== 'systemAdmin' && (
@@ -614,12 +615,13 @@ export default function UsersPage() {
                 <label className="block text-sm text-gray-300 mb-2">Role *</label>
                 <select 
                   value={editRole} 
-                  onChange={(e) => setEditRole(e.target.value as "systemAdmin" | "admin" | "user")} 
+                  onChange={(e) => setEditRole(e.target.value as "systemAdmin" | "admin" | "user" | "accountant")} 
                   className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/30 rounded-xl text-white"
                   disabled={userRole !== 'systemAdmin'}
                 >
                   <option value="user">User</option>
                   {userRole === 'systemAdmin' && <option value="admin">Admin</option>}
+                  {userRole === 'systemAdmin' && <option value="accountant">Accountant</option>}
                   {userRole === 'systemAdmin' && <option value="systemAdmin">System Admin</option>}
                 </select>
                 {userRole !== 'systemAdmin' && (

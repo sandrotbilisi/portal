@@ -21,7 +21,7 @@ export default function RootPage() {
           // Redirect based on role
           if (info.role === 'systemAdmin' || info.role === 'admin') {
             router.replace('/admin');
-          } else if (info.role === 'user') {
+          } else if (info.role === 'user' || info.role === 'accountant') {
             router.replace('/user');
           } else {
             router.replace('/login');

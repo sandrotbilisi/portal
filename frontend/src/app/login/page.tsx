@@ -29,8 +29,8 @@ export default function LoginPage() {
       if (role === 'systemAdmin' || role === 'admin') {
         // Redirect systemAdmin and admins to admin dashboard
         router.replace('/admin');
-      } else if (role === 'user') {
-        // Redirect regular users to user dashboard
+      } else if (role === 'user' || role === 'accountant') {
+        // Redirect regular users and accountants to user dashboard
         router.replace('/user');
       } else {
         router.replace('/unauthorized');

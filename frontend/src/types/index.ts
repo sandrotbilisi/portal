@@ -64,7 +64,7 @@ export interface Company {
 export interface User {
   id: string;
   username: string;
-  role: "systemAdmin" | "admin" | "user";
+  role: "systemAdmin" | "admin" | "user" | "accountant";
   name: string;
   lastname: string;
   personalNumber: string;
@@ -81,7 +81,7 @@ export interface User {
 
 export interface MeResponse {
   username: string;
-  role: "systemAdmin" | "admin" | "user";
+  role: "systemAdmin" | "admin" | "user" | "accountant";
   name: string;
   lastname: string;
   personalNumber: string;
